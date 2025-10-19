@@ -57,7 +57,7 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
-    - assets/Connecty_logo_2.png
+    - assets/Connecty_logo_3.PNG
     - assets/post/dance.jpg
     - assets/post/robo.jpg
     - assets/post/livre.jpg
