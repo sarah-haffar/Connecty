@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/post_card.dart';
+import 'profile_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -294,10 +295,16 @@ Map<String, Map<String, Map<String, List<Map<String, dynamic>>>>> createdEvents 
             onPressed: () {},
           ),
           IconButton(
-            icon: const Icon(Icons.person),
-            tooltip: "Profil",
-            onPressed: () {},
-          ),
+  icon: const Icon(Icons.person),
+  tooltip: "Profil",
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const ProfilePage()),
+    );
+  },
+),
+
         ],
       ),
       
