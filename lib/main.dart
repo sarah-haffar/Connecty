@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/home_page.dart';
+import 'screens/login_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -34,7 +35,8 @@ class MyApp extends StatelessWidget {
           bodyLarge: TextStyle(color: Colors.white, fontSize: 18),
         ),
       ),
-      home: const HomePage(),
+      //home: const HomePage(),
+      home: const LoginPage(),
     );
   }
 }
