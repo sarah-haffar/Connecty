@@ -304,7 +304,6 @@ Map<String, Map<String, Map<String, List<Map<String, dynamic>>>>> createdEvents 
     body: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Sidebar gauche
         Container(
           width: 250,
           color: sidebarColor,
@@ -315,12 +314,11 @@ Map<String, Map<String, Map<String, List<Map<String, dynamic>>>>> createdEvents 
               children: [
                 const SizedBox(height: 10),
 
-                // Contenu scrollable (Groupes + Événements)
                 Expanded(
                   child: SingleChildScrollView(
                     child: Column(
                       children: [
-                        // ======= GROUPES =======
+                     
                         ListTile(
                           leading: const Icon(Icons.group, color: Colors.black54),
                           title: const Text("Groupes", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
@@ -356,7 +354,7 @@ Map<String, Map<String, Map<String, List<Map<String, dynamic>>>>> createdEvents 
 
                         const SizedBox(height: 20),
 
-                        // ======= EVENEMENTS =======
+              
                         ListTile(
                           leading: const Icon(Icons.event, color: Colors.black54),
                           title: const Text("Événements", style: TextStyle(color: Colors.black54, fontWeight: FontWeight.bold)),
@@ -396,7 +394,6 @@ Map<String, Map<String, Map<String, List<Map<String, dynamic>>>>> createdEvents 
                   ),
                 ),
 
-                // Footer fixe (Paramètres + Déconnexion)
                 const Divider(color: Colors.deepPurple),
                 ListTile(
                   leading: const Icon(Icons.settings, color: Colors.purple),
@@ -413,7 +410,6 @@ Map<String, Map<String, Map<String, List<Map<String, dynamic>>>>> createdEvents 
           ),
         ),
 
-        // Contenu principal (centre)
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -465,8 +461,7 @@ Map<String, Map<String, Map<String, List<Map<String, dynamic>>>>> createdEvents 
             ),
           ),
         ),
-
-        // Sidebar droit (quiz & cards)
+        
         Container(
           width: 280,
           color: sidebarColor,
@@ -586,7 +581,19 @@ Map<String, Map<String, Map<String, List<Map<String, dynamic>>>>> createdEvents 
                         const SizedBox(height: 8),
                         ElevatedButton(
                           onPressed: () {
-                            // tu peux afficher un SnackBar avec la réponse
+                            showDialog(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text("Réponse au mini défi"),
+                                content: const Text("5 stylos coûtent 25€. 🖊️💶"),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(context).pop(),
+                                    child: const Text("Fermer"),
+                                  ),
+                                ],
+                              ),
+                            );
                           },
                           style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
                           child: const Text("Voir la réponse"),
@@ -713,7 +720,7 @@ void _showCreateGroupDialog(BuildContext context, String category, String level,
       actions: [
         TextButton(
           onPressed: () {
-            Navigator.of(context).pop(); // fermer le modal
+            Navigator.of(context).pop(); 
           },
           child: const Text("Annuler"),
         ),
@@ -721,11 +728,10 @@ void _showCreateGroupDialog(BuildContext context, String category, String level,
           onPressed: () {
             String newGroup = _groupController.text.trim();
             if (newGroup.isNotEmpty) {
-              // Ajouter le groupe dans la structure
               setState(() {
                 createdGroups[category]![level]![classe]!.add(newGroup);
               });
-              Navigator.of(context).pop(); // fermer le modal
+              Navigator.of(context).pop(); 
             }
           },
           child: const Text("Créer"),
