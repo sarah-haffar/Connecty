@@ -67,7 +67,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   MaterialPageRoute(builder: (context) => const HomePage()),
                 );
               },
-              child: Image.asset("assets/Connecty_logo_3.png", height: 150),
+              child: Image.asset("assets/Connecty_logo_3.PNG", height: 150),
             ),
             const SizedBox(width: 10),
           ],

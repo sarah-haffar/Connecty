@@ -14,11 +14,11 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Connecty',
-      theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF1A0033),
+      theme: ThemeData.light().copyWith(
+        scaffoldBackgroundColor: Colors.white, // Fond clair global
         primaryColor: const Color(0xFF6A1B9A),
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF4A148C),
+          backgroundColor: Color(0xFF6A1B9A),
           titleTextStyle: TextStyle(
             color: Colors.white,
             fontSize: 20,
@@ -29,10 +29,10 @@ class MyApp extends StatelessWidget {
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
           backgroundColor: Color(0xFF8E24AA),
         ),
-        cardColor: const Color(0xFF2A003F),
+        cardColor: Colors.white, // Fond clair pour les cartes
         textTheme: const TextTheme(
-          bodyMedium: TextStyle(color: Colors.white70, fontSize: 16),
-          bodyLarge: TextStyle(color: Colors.white, fontSize: 18),
+          bodyMedium: TextStyle(color: Colors.black87, fontSize: 16),
+          bodyLarge: TextStyle(color: Colors.black, fontSize: 18),
         ),
       ),
       home: const HomePage(),

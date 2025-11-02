@@ -63,7 +63,7 @@ flutter:
     - assets/post/livre.jpg
     - assets/post/basket.jpg
     - assets/post/art.jpg
-    
+    - assets/Connecty_logo_2.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
