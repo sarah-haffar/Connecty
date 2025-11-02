@@ -1,19 +1,14 @@
 import 'package:flutter/material.dart';
 import 'screens/home_page.dart';
 import 'screens/login_page.dart';
+import 'screens/profile_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:io' show Platform;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  if (kIsWeb || Platform.isAndroid || Platform.isIOS) {
-    await Firebase.initializeApp();
-  } else {
-    debugPrint('Firebase non initialisé : plateforme non supportée.');
-  }
-
+  await Firebase.initializeApp(); // initialisation Firebase
   runApp(const MyApp());
 }
 
@@ -48,6 +43,7 @@ class MyApp extends StatelessWidget {
       ),
       //home: const HomePage(),
       home: const LoginPage(),
+      // home: const ProfilePage(),
     );
   }
 }

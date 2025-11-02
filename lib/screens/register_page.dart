@@ -1,3 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -15,6 +17,57 @@ class _RegisterPageState extends State<RegisterPage> {
   final passwordController = TextEditingController();
 
   bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  Future<void> registerUser() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      //Créer le compte Firebase Auth
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: emailController.text.trim(),
+            password: passwordController.text.trim(),
+          );
+
+      //Sauvegarder les infos dans Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
+            'name': nameController.text.trim(),
+            'age': int.parse(ageController.text.trim()),
+            'email': emailController.text.trim(),
+          });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Compte créé avec succès "),
+          backgroundColor: Colors.deepPurple,
+        ),
+      );
+
+      // Attendre un peu avant de quitter la page
+      await Future.delayed(const Duration(seconds: 2));
+
+      Navigator.pop(context); // retour vers LoginPage
+    } on FirebaseAuthException catch (e) {
+      String message = "Une erreur est survenue";
+      if (e.code == 'email-already-in-use') {
+        message = "Cet e-mail est déjà utilisé.";
+      } else if (e.code == 'weak-password') {
+        message = "Mot de passe trop faible.";
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +104,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    Image.asset('assets/Connecty_logo_1.jpeg', height: 100),
+                    Image.asset('assets/Connecty_logo_2.png', height: 100),
                     const SizedBox(height: 15),
                     Text(
                       "Créer un compte",
@@ -195,17 +248,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
                     // bouton inscription
                     ElevatedButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Compte créé avec succès"),
-                              backgroundColor: Colors.deepPurple,
-                            ),
-                          );
-                          Navigator.pop(context);
-                        }
-                      },
+                      onPressed: _isLoading
+                          ? null
+                          : registerUser, // Appel direct de ta fonction d'inscription
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepPurple,
                         foregroundColor: Colors.white,
@@ -215,13 +260,15 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         elevation: 8,
                       ),
-                      child: const Text(
-                        "S'inscrire",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              "S'inscrire",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                     const SizedBox(height: 25),
 

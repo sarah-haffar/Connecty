@@ -1,6 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:animate_do/animate_do.dart';
 import 'register_page.dart';
+import 'home_page.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,8 +14,37 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
+  bool _obscurePassword = true;
+  bool _isLoading = false;
 
-  bool _obscurePassword = true; // <-- pour afficher/masquer
+  Future<void> loginUser() async {
+    setState(() => _isLoading = true);
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailController.text.trim(),
+        password: passwordController.text.trim(),
+      );
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HomePage()),
+      );
+    } on FirebaseAuthException catch (e) {
+      String message = "Échec de connexion.";
+      if (e.code == 'user-not-found') {
+        message = "Aucun utilisateur trouvé avec cet e-mail.";
+      } else if (e.code == 'wrong-password') {
+        message = "Mot de passe incorrect.";
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +81,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 child: Column(
                   children: [
-                    Image.asset('assets/Connecty_logo_1.jpeg', height: 100),
+                    Image.asset('assets/Connecty_logo_2.png', height: 100),
                     const SizedBox(height: 15),
                     Text(
                       "Bienvenue sur Connecty",
@@ -135,14 +166,9 @@ class _LoginPageState extends State<LoginPage> {
 
                     // bouton connexion
                     ElevatedButton(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text("Connexion réussie"),
-                            backgroundColor: Colors.deepPurple,
-                          ),
-                        );
-                      },
+                      onPressed: _isLoading
+                          ? null
+                          : loginUser, // Appel de la fonction de connexion Firebase
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepPurple,
                         foregroundColor: Colors.white,
@@ -152,13 +178,15 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         elevation: 8,
                       ),
-                      child: const Text(
-                        "Se connecter",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              "Se connecter",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                     const SizedBox(height: 25),
 
