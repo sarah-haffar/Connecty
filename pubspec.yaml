@@ -57,12 +57,13 @@ flutter:
   uses-material-design: true
   assets:
     - assets/Connecty_logo_3.PNG
+    - assets/Connecty_logo_2.png
     - assets/post/dance.jpg
     - assets/post/robo.jpg
     - assets/post/livre.jpg
     - assets/post/basket.jpg
     - assets/post/art.jpg
-    - assets/Connecty_logo_1.jpeg
+    
 
   # To add assets to your application, add an assets section, like this:
   # assets:

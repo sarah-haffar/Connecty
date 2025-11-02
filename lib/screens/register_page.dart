@@ -51,7 +51,7 @@ class _RegisterPageState extends State<RegisterPage> {
                 key: _formKey,
                 child: Column(
                   children: [
-                    Image.asset('assets/Connecty_logo_1.jpeg', height: 100),
+                    Image.asset('assets/Connecty_logo_2.png', height: 100),
                     const SizedBox(height: 15),
                     Text(
                       "Créer un compte",

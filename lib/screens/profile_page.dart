@@ -67,10 +67,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   MaterialPageRoute(builder: (context) => const HomePage()),
                 );
               },
-              child: Image.asset("assets/Connecty_logo_2.png", height: 150),
+              child: Image.asset("assets/Connecty_logo_3.png", height: 150),
             ),
             const SizedBox(width: 10),
-            
           ],
         ),
         actions: [
@@ -480,282 +479,282 @@ class _ProfilePageState extends State<ProfilePage> {
     ];
   }
 
- void _editProfile() {
-  // Créer des contrôleurs temporaires avec les valeurs actuelles
-  final usernameController = TextEditingController(text: _username);
-  final pseudoController = TextEditingController(text: _pseudo);
-  final bioController = TextEditingController(text: _bio);
-  final ageController = TextEditingController(text: _aboutInfo["Âge"]);
-  final schoolController = TextEditingController(text: _aboutInfo["École"]);
-  final locationController = TextEditingController(text: _aboutInfo["Lieu"]);
-  final interestsController = TextEditingController(text: _aboutInfo["Centres d'intérêt"]);
+  void _editProfile() {
+    // Créer des contrôleurs temporaires avec les valeurs actuelles
+    final usernameController = TextEditingController(text: _username);
+    final pseudoController = TextEditingController(text: _pseudo);
+    final bioController = TextEditingController(text: _bio);
+    final ageController = TextEditingController(text: _aboutInfo["Âge"]);
+    final schoolController = TextEditingController(text: _aboutInfo["École"]);
+    final locationController = TextEditingController(text: _aboutInfo["Lieu"]);
+    final interestsController = TextEditingController(
+      text: _aboutInfo["Centres d'intérêt"],
+    );
 
-  showDialog(
-    context: context,
-    builder: (context) => AlertDialog(
-      backgroundColor: Colors.white,
-      surfaceTintColor: Colors.white,
-      title: Row(
-        children: [
-          Icon(Icons.edit, color: primaryColor),
-          const SizedBox(width: 8),
-          Text(
-            "Modifier le profil",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: primaryColor,
-            ),
-          ),
-        ],
-      ),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        title: Row(
           children: [
-            // Photo de profil modifiable
-            Stack(
-              children: [
-                CircleAvatar(
-                  radius: 40,
-                  backgroundColor: primaryColor.withOpacity(0.1),
-                  backgroundImage: const AssetImage("assets/post/art.jpg"),
-                ),
-                Positioned(
-                  bottom: 0,
-                  right: 0,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: primaryColor,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.camera_alt,
-                      color: Colors.white,
-                      size: 14,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Formulaire de modification
-            TextField(
-              controller: usernameController,
-              style: const TextStyle(color: Colors.black),
-              decoration: InputDecoration(
-                labelText: "Nom complet",
-                labelStyle: TextStyle(color: primaryColor),
-                hintStyle: const TextStyle(color: Colors.black54),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: primaryColor),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: primaryColor, width: 2),
-                ),
-                prefixIcon: Icon(Icons.person, color: primaryColor),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: pseudoController,
-              style: const TextStyle(color: Colors.black),
-              decoration: InputDecoration(
-                labelText: "Pseudo",
-                labelStyle: TextStyle(color: primaryColor),
-                hintStyle: const TextStyle(color: Colors.black54),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: primaryColor),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: primaryColor, width: 2),
-                ),
-                prefixIcon: Icon(Icons.alternate_email, color: primaryColor),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: bioController,
-              style: const TextStyle(color: Colors.black),
-              maxLines: 3,
-              decoration: InputDecoration(
-                labelText: "Bio",
-                labelStyle: TextStyle(color: primaryColor),
-                hintStyle: const TextStyle(color: Colors.black54),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: primaryColor),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: primaryColor, width: 2),
-                ),
-                prefixIcon: Icon(Icons.description, color: primaryColor),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Informations personnelles
+            Icon(Icons.edit, color: primaryColor),
+            const SizedBox(width: 8),
             Text(
-              "Informations personnelles",
+              "Modifier le profil",
               style: TextStyle(
                 fontWeight: FontWeight.bold,
-                fontSize: 16,
                 color: primaryColor,
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: ageController,
-              style: const TextStyle(color: Colors.black),
-              decoration: InputDecoration(
-                labelText: "Âge",
-                labelStyle: TextStyle(color: primaryColor),
-                hintStyle: const TextStyle(color: Colors.black54),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: primaryColor),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: primaryColor, width: 2),
-                ),
-                prefixIcon: Icon(Icons.cake, color: primaryColor),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: schoolController,
-              style: const TextStyle(color: Colors.black),
-              decoration: InputDecoration(
-                labelText: "École",
-                labelStyle: TextStyle(color: primaryColor),
-                hintStyle: const TextStyle(color: Colors.black54),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: primaryColor),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: primaryColor, width: 2),
-                ),
-                prefixIcon: Icon(Icons.school, color: primaryColor),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: locationController,
-              style: const TextStyle(color: Colors.black),
-              decoration: InputDecoration(
-                labelText: "Lieu",
-                labelStyle: TextStyle(color: primaryColor),
-                hintStyle: const TextStyle(color: Colors.black54),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: primaryColor),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: primaryColor, width: 2),
-                ),
-                prefixIcon: Icon(Icons.location_on, color: primaryColor),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            TextField(
-              controller: interestsController,
-              style: const TextStyle(color: Colors.black),
-              maxLines: 2,
-              decoration: InputDecoration(
-                labelText: "Centres d'intérêt",
-                labelStyle: TextStyle(color: primaryColor),
-                hintStyle: const TextStyle(color: Colors.black54),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: primaryColor),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide(color: primaryColor, width: 2),
-                ),
-                prefixIcon: Icon(Icons.interests, color: primaryColor),
               ),
             ),
           ],
         ),
-      ),
-      actions: [
-        // Bouton Annuler
-        OutlinedButton(
-          onPressed: () {
-            Navigator.pop(context);
-          },
-          style: OutlinedButton.styleFrom(
-            foregroundColor: primaryColor,
-            side: BorderSide(color: primaryColor),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
-          ),
-          child: const Text("Annuler"),
-        ),
-        
-        // Bouton Sauvegarder
-        ElevatedButton(
-          onPressed: () {
-            // Appliquer les modifications localement
-            setState(() {
-              _username = usernameController.text;
-              _pseudo = pseudoController.text;
-              _bio = bioController.text;
-              _aboutInfo["Âge"] = ageController.text;
-              _aboutInfo["École"] = schoolController.text;
-              _aboutInfo["Lieu"] = locationController.text;
-              _aboutInfo["Centres d'intérêt"] = interestsController.text;
-            });
-
-            Navigator.pop(context);
-            
-            // Message de succès
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Row(
-                  children: [
-                    Icon(Icons.check_circle, color: Colors.white),
-                    const SizedBox(width: 8),
-                    const Text("Profil modifié avec succès !"),
-                  ],
-                ),
-                backgroundColor: Colors.green,
-                duration: const Duration(seconds: 2),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Photo de profil modifiable
+              Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundColor: primaryColor.withOpacity(0.1),
+                    backgroundImage: const AssetImage("assets/post/art.jpg"),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    right: 0,
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: primaryColor,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.camera_alt,
+                        color: Colors.white,
+                        size: 14,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            );
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: primaryColor,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-            ),
+              const SizedBox(height: 16),
+
+              // Formulaire de modification
+              TextField(
+                controller: usernameController,
+                style: const TextStyle(color: Colors.black),
+                decoration: InputDecoration(
+                  labelText: "Nom complet",
+                  labelStyle: TextStyle(color: primaryColor),
+                  hintStyle: const TextStyle(color: Colors.black54),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: primaryColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: primaryColor, width: 2),
+                  ),
+                  prefixIcon: Icon(Icons.person, color: primaryColor),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: pseudoController,
+                style: const TextStyle(color: Colors.black),
+                decoration: InputDecoration(
+                  labelText: "Pseudo",
+                  labelStyle: TextStyle(color: primaryColor),
+                  hintStyle: const TextStyle(color: Colors.black54),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: primaryColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: primaryColor, width: 2),
+                  ),
+                  prefixIcon: Icon(Icons.alternate_email, color: primaryColor),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: bioController,
+                style: const TextStyle(color: Colors.black),
+                maxLines: 3,
+                decoration: InputDecoration(
+                  labelText: "Bio",
+                  labelStyle: TextStyle(color: primaryColor),
+                  hintStyle: const TextStyle(color: Colors.black54),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: primaryColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: primaryColor, width: 2),
+                  ),
+                  prefixIcon: Icon(Icons.description, color: primaryColor),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Informations personnelles
+              Text(
+                "Informations personnelles",
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: primaryColor,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: ageController,
+                style: const TextStyle(color: Colors.black),
+                decoration: InputDecoration(
+                  labelText: "Âge",
+                  labelStyle: TextStyle(color: primaryColor),
+                  hintStyle: const TextStyle(color: Colors.black54),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: primaryColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: primaryColor, width: 2),
+                  ),
+                  prefixIcon: Icon(Icons.cake, color: primaryColor),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: schoolController,
+                style: const TextStyle(color: Colors.black),
+                decoration: InputDecoration(
+                  labelText: "École",
+                  labelStyle: TextStyle(color: primaryColor),
+                  hintStyle: const TextStyle(color: Colors.black54),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: primaryColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: primaryColor, width: 2),
+                  ),
+                  prefixIcon: Icon(Icons.school, color: primaryColor),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: locationController,
+                style: const TextStyle(color: Colors.black),
+                decoration: InputDecoration(
+                  labelText: "Lieu",
+                  labelStyle: TextStyle(color: primaryColor),
+                  hintStyle: const TextStyle(color: Colors.black54),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: primaryColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: primaryColor, width: 2),
+                  ),
+                  prefixIcon: Icon(Icons.location_on, color: primaryColor),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              TextField(
+                controller: interestsController,
+                style: const TextStyle(color: Colors.black),
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: "Centres d'intérêt",
+                  labelStyle: TextStyle(color: primaryColor),
+                  hintStyle: const TextStyle(color: Colors.black54),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: primaryColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide(color: primaryColor, width: 2),
+                  ),
+                  prefixIcon: Icon(Icons.interests, color: primaryColor),
+                ),
+              ),
+            ],
           ),
-          child: const Text("Sauvegarder"),
         ),
-      ],
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        actions: [
+          // Bouton Annuler
+          OutlinedButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            style: OutlinedButton.styleFrom(
+              foregroundColor: primaryColor,
+              side: BorderSide(color: primaryColor),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text("Annuler"),
+          ),
+
+          // Bouton Sauvegarder
+          ElevatedButton(
+            onPressed: () {
+              // Appliquer les modifications localement
+              setState(() {
+                _username = usernameController.text;
+                _pseudo = pseudoController.text;
+                _bio = bioController.text;
+                _aboutInfo["Âge"] = ageController.text;
+                _aboutInfo["École"] = schoolController.text;
+                _aboutInfo["Lieu"] = locationController.text;
+                _aboutInfo["Centres d'intérêt"] = interestsController.text;
+              });
+
+              Navigator.pop(context);
+
+              // Message de succès
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      Icon(Icons.check_circle, color: Colors.white),
+                      const SizedBox(width: 8),
+                      const Text("Profil modifié avec succès !"),
+                    ],
+                  ),
+                  backgroundColor: Colors.green,
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text("Sauvegarder"),
+          ),
+        ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
-    ),
-  );
-}
+    );
+  }
 }

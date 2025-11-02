@@ -50,7 +50,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
                 child: Column(
                   children: [
-                    Image.asset('assets/Connecty_logo_1.jpeg', height: 100),
+                    Image.asset('assets/Connecty_logo_2.png', height: 100),
                     const SizedBox(height: 15),
                     Text(
                       "Bienvenue sur Connecty",
