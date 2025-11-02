@@ -66,6 +66,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     // nom
                     TextFormField(
                       controller: nameController,
+                      style: const TextStyle(color: Colors.deepPurple),
                       decoration: InputDecoration(
                         prefixIcon: const Icon(
                           Icons.person,
@@ -74,6 +75,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         filled: true,
                         fillColor: Colors.deepPurple[50],
                         hintText: "Nom complet",
+                        hintStyle: const TextStyle(color: Colors.deepPurple),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide.none,
@@ -92,6 +94,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     TextFormField(
                       controller: ageController,
                       keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.deepPurple),
                       decoration: InputDecoration(
                         prefixIcon: const Icon(
                           Icons.cake,
@@ -100,6 +103,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         filled: true,
                         fillColor: Colors.deepPurple[50],
                         hintText: "Âge (13-18 ans)",
+                        hintStyle: const TextStyle(color: Colors.deepPurple),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide.none,
@@ -123,6 +127,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     // email
                     TextFormField(
                       controller: emailController,
+                      style: const TextStyle(color: Colors.deepPurple),
                       decoration: InputDecoration(
                         prefixIcon: const Icon(
                           Icons.email_outlined,
@@ -131,6 +136,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         filled: true,
                         fillColor: Colors.deepPurple[50],
                         hintText: "Adresse e-mail",
+                        hintStyle: const TextStyle(color: Colors.deepPurple),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide.none,
@@ -146,10 +152,11 @@ class _RegisterPageState extends State<RegisterPage> {
                     ),
                     const SizedBox(height: 15),
 
-                    // mot de passe 👁️
+                    // mot de passe
                     TextFormField(
                       controller: passwordController,
                       obscureText: _obscurePassword,
+                      style: const TextStyle(color: Colors.deepPurple),
                       decoration: InputDecoration(
                         prefixIcon: const Icon(
                           Icons.lock_outline,
@@ -171,6 +178,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         filled: true,
                         fillColor: Colors.deepPurple[50],
                         hintText: "Mot de passe",
+                        hintStyle: const TextStyle(color: Colors.deepPurple),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide.none,

@@ -66,6 +66,10 @@ class _LoginPageState extends State<LoginPage> {
                     // email
                     TextField(
                       controller: emailController,
+                      style: const TextStyle(
+                        color: Colors.deepPurple,
+                        fontWeight: FontWeight.w600,
+                      ),
                       decoration: InputDecoration(
                         prefixIcon: const Icon(
                           Icons.email_outlined,
@@ -74,6 +78,7 @@ class _LoginPageState extends State<LoginPage> {
                         filled: true,
                         fillColor: Colors.deepPurple[50],
                         hintText: "Adresse e-mail",
+                        hintStyle: const TextStyle(color: Colors.deepPurple),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide.none,
@@ -90,6 +95,10 @@ class _LoginPageState extends State<LoginPage> {
                     TextField(
                       controller: passwordController,
                       obscureText: _obscurePassword,
+                      style: const TextStyle(
+                        color: Colors.deepPurple,
+                        fontWeight: FontWeight.w600,
+                      ),
                       decoration: InputDecoration(
                         prefixIcon: const Icon(
                           Icons.lock_outline,
@@ -111,6 +120,7 @@ class _LoginPageState extends State<LoginPage> {
                         filled: true,
                         fillColor: Colors.deepPurple[50],
                         hintText: "Mot de passe",
+                        hintStyle: const TextStyle(color: Colors.deepPurple),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide.none,
