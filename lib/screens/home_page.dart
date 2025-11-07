@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../widgets/post_card.dart';
 import 'profile_page.dart';
 import 'login_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -570,13 +571,35 @@ class _HomePageState extends State<HomePage> {
             child: const Text("Annuler"),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               String newGroup = _groupController.text.trim();
               if (newGroup.isNotEmpty) {
-                setState(() {
-                  createdGroups[category]![level]![classe]!.add(newGroup);
-                });
-                Navigator.of(context).pop();
+                try {
+                  //Enregistrement dans Firestore
+                  await FirebaseFirestore.instance.collection('groupe').add({
+                    'nom': newGroup,
+                    'categorie': category,
+                    'niveau': level,
+                    'classe': classe,
+                    'date_creation': Timestamp.now(),
+                  });
+
+                  // Ajout local pour affichage immédiat
+                  setState(() {
+                    createdGroups[category]![level]![classe]!.add(newGroup);
+                  });
+
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Groupe ajouté avec succès ✅'),
+                    ),
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Erreur : $e')));
+                }
               }
             },
             child: const Text("Créer"),
