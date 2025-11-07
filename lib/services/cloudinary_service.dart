@@ -3,13 +3,14 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:crypto/crypto.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class CloudinaryService {
-  static const String cloudName = 'durcgzvqq';
-  static const String apiKey = '548762297286735';
-  static const String uploadPreset = 'Connecty';
-  static const String uploadPresetRaw = 'connecty_raw'; // ✅ Nouveau preset pour PDFs
-  static const String apiSecret = 'uZXOUHOu52UYLDCLu2vQAqB8S2Q';
+  static final String cloudName = dotenv.env['CLOUDINARY_CLOUD_NAME']!;
+  static final String apiKey = dotenv.env['CLOUDINARY_API_KEY']!;
+  static final String apiSecret = dotenv.env['CLOUDINARY_API_SECRET']!;
+  static final String uploadPreset = dotenv.env['CLOUDINARY_UPLOAD_PRESET']!;
+  static final String uploadPresetRaw = dotenv.env['CLOUDINARY_UPLOAD_PRESET_RAW']!;
 
   // ✅ SOLUTION ULTIME: Upload signé avec accès public forcé
   static Future<String?> uploadFile(XFile file, String fileType) async {

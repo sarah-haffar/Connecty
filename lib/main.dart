@@ -4,19 +4,27 @@ import 'screens/home_page.dart';
 import 'screens/login_page.dart';
 import 'screens/profile_page.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'firebase_options.dart'; 
+import 'firebase_options.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart'; // ✅ Import dotenv
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ Charger les variables d'environnement
+  await dotenv.load(fileName: ".env");
+
+  // Initialiser Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
   try {
     final ref = FirebaseStorage.instance.ref();
     print("✅ Firebase Storage connecté : ${ref.fullPath}");
   } catch (e) {
     print("❌ Erreur Firebase Storage : $e");
   }
+
   runApp(const MyApp());
 }
 
