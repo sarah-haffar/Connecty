@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/post_card.dart';
+import 'group_page.dart';
 import 'profile_page.dart';
 import 'login_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -20,25 +21,27 @@ class _HomePageState extends State<HomePage> {
   int currentQuizIndex = 0;
 
   final List<String> users = ["Sarah", "Ahmed", "Feriel", "Baha"];
-  final List<String> groups = ["Art", "Sport", "Clubs", "Robotique"];
   final List<String> chats = ["Sarah", "Ahmed", "Feriel", "Baha"];
 
-  Map<String, Map<String, Map<String, List<String>>>> createdGroups = {
-    "Art": {
-      "Collège": {"7ème": [], "8ème": [], "9ème": []},
-      "Lycée": {"1ère": [], "2ème": [], "3ème": [], "Bac": []},
-    },
-    "Sport": {
-      "Collège": {"7ème": [], "8ème": [], "9ème": []},
-      "Lycée": {"1ère": [], "2ème": [], "3ème": [], "Bac": []},
-    },
-    "Robotique": {
-      "Collège": {"7ème": [], "8ème": [], "9ème": []},
-      "Lycée": {"1ère": [], "2ème": [], "3ème": [], "Bac": []},
-    },
-    "Clubs": {
-      "Collège": {"7ème": [], "8ème": [], "9ème": []},
-      "Lycée": {"1ère": [], "2ème": [], "3ème": [], "Bac": []},
+  // STRUCTURE CORRIGÉE - "Groupe" comme catégorie principale
+  Map<String, Map<String, Map<String, Map<String, List<String>>>>> createdGroups = {
+    "Groupe": {  // ← "Groupe" comme grande catégorie
+      "Robotique": {
+        "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
+        "Lycée": {"1ère": <String>[], "2ème": <String>[], "3ème": <String>[], "Bac": <String>[]},
+      },
+      "Art": {
+        "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
+        "Lycée": {"1ère": <String>[], "2ème": <String>[], "3ème": <String>[], "Bac": <String>[]},
+      },
+      "Sport": {
+        "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
+        "Lycée": {"1ère": <String>[], "2ème": <String>[], "3ème": <String>[], "Bac": <String>[]},
+      },
+      "Clubs": {
+        "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
+        "Lycée": {"1ère": <String>[], "2ème": <String>[], "3ème": <String>[], "Bac": <String>[]},
+      },
     },
   };
 
@@ -52,7 +55,7 @@ class _HomePageState extends State<HomePage> {
     },
     {
       "username": "Ahmed",
-      "content": "Super entraînement de basket aujourd’hui avec l’équipe 🏀💪",
+      "content": "Super entraînement de basket aujourd'hui avec l'équipe 🏀💪",
       "category": "Sport",
       "imageUrl": "assets/post/basket.jpg",
       "isFavorite": false,
@@ -103,6 +106,61 @@ class _HomePageState extends State<HomePage> {
   final Color primaryColor = const Color(0xFF6A1B9A);
   final Color sidebarColor = const Color(0xFFF0F0F0);
 
+  Future<void> _loadGroupsFromFirestore() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance.collection('groupe').get();
+
+      // Structure vide de départ avec "Groupe" comme catégorie principale
+      final Map<String, Map<String, Map<String, Map<String, List<String>>>>> updatedGroups = {
+        "Groupe": {
+          "Robotique": {
+            "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
+            "Lycée": {"1ère": <String>[], "2ème": <String>[], "3ème": <String>[], "Bac": <String>[]},
+          },
+          "Art": {
+            "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
+            "Lycée": {"1ère": <String>[], "2ème": <String>[], "3ème": <String>[], "Bac": <String>[]},
+          },
+          "Sport": {
+            "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
+            "Lycée": {"1ère": <String>[], "2ème": <String>[], "3ème": <String>[], "Bac": <String>[]},
+          },
+          "Clubs": {
+            "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
+            "Lycée": {"1ère": <String>[], "2ème": <String>[], "3ème": <String>[], "Bac": <String>[]},
+          },
+        },
+      };
+
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final categorie = data['categorie'];
+        final niveau = data['niveau'];
+        final classe = data['classe'];
+        final nom = data['nom'];
+
+        // Vérifier que la structure existe avant d'ajouter
+        if (updatedGroups["Groupe"]?[categorie] != null &&
+            updatedGroups["Groupe"]![categorie]![niveau] != null &&
+            updatedGroups["Groupe"]![categorie]![niveau]![classe] != null) {
+          updatedGroups["Groupe"]![categorie]![niveau]![classe]!.add(nom);
+        }
+      }
+
+      setState(() {
+        createdGroups = updatedGroups;
+      });
+    } catch (e) {
+      print("❌ Erreur lors du chargement des groupes : $e");
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadGroupsFromFirestore(); // 🔥 charge les groupes dès le démarrage
+  }
+
   @override
   Widget build(BuildContext context) {
     final displayedPosts = posts.where((p) {
@@ -136,7 +194,9 @@ class _HomePageState extends State<HomePage> {
                   },
                   child: Image.asset(
                     "assets/Connecty_logo_3.PNG",
-                    height: isMobile ? 60 : 100,
+                    height: isMobile ? 45 : 80,
+                    width: isMobile ? 45 : 80,
+                    fit: BoxFit.contain,
                   ),
                 ),
                 const SizedBox(width: 10),
@@ -304,136 +364,150 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildSidebar() {
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Column(
-        children: [
-          const SizedBox(height: 10),
-          ListTile(
-            leading: const Icon(Icons.group, color: Colors.black87),
-            title: const Text(
-              "Groupes",
-              style: TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const Divider(color: Colors.black26),
-          ...createdGroups.keys.map(
-            (category) => ExpansionTile(
-              leading: _getCategoryIcon(category),
-              title: Text(
-                category,
-                style: const TextStyle(
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Column(
+          children: [
+            const SizedBox(height: 10),
+            ListTile(
+              leading: const Icon(Icons.group, color: Colors.black87),
+              title: const Text(
+                "Groupes",
+                style: TextStyle(
                   color: Colors.black87,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              children: [
-                ...createdGroups[category]!.keys.map(
-                  (level) => ExpansionTile(
-                    title: Text(
-                      level,
-                      style: const TextStyle(
-                        color: Colors.black87,
-                        fontWeight: FontWeight.w500,
+            ),
+            const Divider(color: Colors.black26),
+            
+            // Navigation dans "Groupe" → Sous-catégorie → Niveau → Classe
+            ...createdGroups["Groupe"]!.keys.map(
+              (sousCategorie) => ExpansionTile(
+                leading: _getCategoryIcon(sousCategorie),
+                title: Text(
+                  sousCategorie,
+                  style: const TextStyle(
+                    color: Colors.black87,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                children: [
+                  ...createdGroups["Groupe"]![sousCategorie]!.keys.map(
+                    (niveau) => ExpansionTile(
+                      title: Text(
+                        niveau,
+                        style: const TextStyle(
+                          color: Colors.black87,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                    children: [
-                      ...createdGroups[category]![level]!.keys.map(
-                        (classe) => Column(
-                          children: [
-                            ListTile(
-                              leading: const Icon(
-                                Icons.add,
-                                color: Colors.green,
-                              ),
-                              title: const Text(
-                                "Créer un groupe",
-                                style: TextStyle(color: Colors.black87),
-                              ),
-                              onTap: () {
-                                _showCreateGroupDialog(
-                                  context,
-                                  category,
-                                  level,
-                                  classe,
-                                );
-                              },
-                            ),
-                            ...createdGroups[category]![level]![classe]!.map(
-                              (groupName) => ListTile(
-                                leading: const Icon(
-                                  Icons.group,
-                                  color: Colors.black54,
-                                ),
+                      children: [
+                        ...createdGroups["Groupe"]![sousCategorie]![niveau]!.keys.map(
+                          (classe) => Column(
+                            children: [
+                              ListTile(
+                                leading: const Icon(Icons.add, color: Colors.green),
                                 title: Text(
-                                  groupName,
+                                  "Créer un groupe ($classe)",
                                   style: const TextStyle(color: Colors.black87),
                                 ),
+                                onTap: () {
+                                  _showCreateGroupDialog(context, sousCategorie, niveau, classe);
+                                },
                               ),
-                            ),
-                          ],
+                              ...createdGroups["Groupe"]![sousCategorie]![niveau]![classe]!.map(
+                                (groupName) => ListTile(
+                                  leading: const Icon(Icons.group, color: Colors.black54),
+                                  title: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        groupName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      Text(
+                                        "Classe: $classe",
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black54,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => GroupPage(
+                                          groupName: groupName,
+                                          categorie: sousCategorie,
+                                          niveau: niveau,
+                                          classe: classe,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const Divider(color: Colors.black26),
+            ListTile(
+              leading: const Icon(Icons.settings, color: Colors.black87),
+              title: const Text(
+                "Paramètres",
+                style: TextStyle(color: Colors.black87),
+              ),
+              onTap: () {},
+            ),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.black87),
+              title: const Text(
+                "Déconnexion",
+                style: TextStyle(color: Colors.black87),
+              ),
+              onTap: () {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text("Confirmation"),
+                    content: const Text("Voulez-vous vraiment vous déconnecter ?"),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: const Text("Annuler"),
+                      ),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => const LoginPage()),
+                          );
+                        },
+                        child: const Text("Se déconnecter"),
                       ),
                     ],
                   ),
-                ),
-              ],
+                );
+              },
             ),
-          ),
-          const Divider(color: Colors.black26),
-          ListTile(
-            leading: const Icon(Icons.settings, color: Colors.black87),
-            title: const Text(
-              "Paramètres",
-              style: TextStyle(color: Colors.black87),
-            ),
-            onTap: () {},
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.black87),
-            title: const Text(
-              "Déconnexion",
-              style: TextStyle(color: Colors.black87),
-            ),
-            onTap: () {
-              // On affiche une boîte de confirmation
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text("Confirmation"),
-                  content: const Text(
-                    "Voulez-vous vraiment vous déconnecter ?",
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context), // Annuler
-                      child: const Text("Annuler"),
-                    ),
-                    ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                      ),
-                      onPressed: () {
-                        Navigator.pop(context); // Fermer la boîte
-                        // Puis naviguer vers la page de connexion
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const LoginPage(),
-                          ),
-                        );
-                      },
-                      child: const Text("Se déconnecter"),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -551,8 +625,8 @@ class _HomePageState extends State<HomePage> {
 
   void _showCreateGroupDialog(
     BuildContext context,
-    String category,
-    String level,
+    String sousCategorie,
+    String niveau,
     String classe,
   ) {
     final TextEditingController _groupController = TextEditingController();
@@ -560,7 +634,7 @@ class _HomePageState extends State<HomePage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text("Créer un groupe ($category > $level > $classe)"),
+        title: Text("Créer un groupe ($sousCategorie > $niveau > $classe)"),
         content: TextField(
           controller: _groupController,
           decoration: const InputDecoration(hintText: "Nom du groupe"),
@@ -575,18 +649,18 @@ class _HomePageState extends State<HomePage> {
               String newGroup = _groupController.text.trim();
               if (newGroup.isNotEmpty) {
                 try {
-                  //Enregistrement dans Firestore
+                  // Enregistrement dans Firestore
                   await FirebaseFirestore.instance.collection('groupe').add({
                     'nom': newGroup,
-                    'categorie': category,
-                    'niveau': level,
+                    'categorie': sousCategorie,
+                    'niveau': niveau,
                     'classe': classe,
                     'date_creation': Timestamp.now(),
                   });
 
                   // Ajout local pour affichage immédiat
                   setState(() {
-                    createdGroups[category]![level]![classe]!.add(newGroup);
+                    createdGroups["Groupe"]![sousCategorie]![niveau]![classe]!.add(newGroup);
                   });
 
                   Navigator.of(context).pop();
@@ -596,9 +670,9 @@ class _HomePageState extends State<HomePage> {
                     ),
                   );
                 } catch (e) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Erreur : $e')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Erreur : $e')),
+                  );
                 }
               }
             },

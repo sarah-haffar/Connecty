@@ -1,14 +1,22 @@
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'screens/home_page.dart';
 import 'screens/login_page.dart';
 import 'screens/profile_page.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io' show Platform;
+import 'firebase_options.dart'; 
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // initialisation Firebase
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  try {
+    final ref = FirebaseStorage.instance.ref();
+    print("✅ Firebase Storage connecté : ${ref.fullPath}");
+  } catch (e) {
+    print("❌ Erreur Firebase Storage : $e");
+  }
   runApp(const MyApp());
 }
 
@@ -21,7 +29,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Connecty',
       theme: ThemeData.light().copyWith(
-        scaffoldBackgroundColor: Colors.white, // Fond clair global
+        scaffoldBackgroundColor: Colors.white,
         primaryColor: const Color(0xFF6A1B9A),
         appBarTheme: const AppBarTheme(
           backgroundColor: Color(0xFF6A1B9A),
@@ -35,15 +43,13 @@ class MyApp extends StatelessWidget {
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
           backgroundColor: Color(0xFF8E24AA),
         ),
-        cardColor: Colors.white, // Fond clair pour les cartes
+        cardColor: Colors.white,
         textTheme: const TextTheme(
           bodyMedium: TextStyle(color: Colors.black87, fontSize: 16),
           bodyLarge: TextStyle(color: Colors.black, fontSize: 18),
         ),
       ),
-      //home: const HomePage(),
       home: const LoginPage(),
-      // home: const ProfilePage(),
     );
   }
 }
