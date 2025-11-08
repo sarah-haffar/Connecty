@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
-import 'screens/home_page.dart';
 import 'screens/login_page.dart';
-import 'screens/profile_page.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'dart:io' show Platform;
+import 'firebase_options.dart'; // Import généré automatiquement
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(); // initialisation Firebase
-  runApp(const MyApp());
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  runApp(MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});

@@ -94,9 +94,9 @@ class _PostCardState extends State<PostCard> {
             const SizedBox(height: 8),
             GestureDetector(
               onTap: () {
-                final TextEditingController _modalCommentController = TextEditingController();
-                bool _showLikes = false;
-                bool _showComments = true;
+                final TextEditingController modalCommentController = TextEditingController();
+                bool showLikes = false;
+                bool showComments = true;
 
                 showDialog(
                   context: context,
@@ -155,15 +155,15 @@ class _PostCardState extends State<PostCard> {
                                     Row(
                                       mainAxisAlignment: MainAxisAlignment.start,
                                       children: [
-                                        _actionIcon(Icons.thumb_up, _showLikes, () {
+                                        _actionIcon(Icons.thumb_up, showLikes, () {
                                           setModalState(() {
-                                            _showLikes = !_showLikes;
+                                            showLikes = !showLikes;
                                           });
                                         }),
                                         const SizedBox(width: 20),
-                                        _actionIcon(Icons.comment, _showComments, () {
+                                        _actionIcon(Icons.comment, showComments, () {
                                           setModalState(() {
-                                            _showComments = !_showComments;
+                                            showComments = !showComments;
                                           });
                                         }),
                                         const SizedBox(width: 20),
@@ -171,7 +171,7 @@ class _PostCardState extends State<PostCard> {
                                       ],
                                     ),
                                     const SizedBox(height: 12),
-                                    if (_showComments)
+                                    if (showComments)
                                       Column(
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
@@ -248,7 +248,7 @@ class _PostCardState extends State<PostCard> {
                                             children: [
                                               Expanded(
                                                 child: TextField(
-                                                  controller: _modalCommentController,
+                                                  controller: modalCommentController,
                                                   style: TextStyle(color: primaryColor),
                                                   decoration: InputDecoration(
                                                     hintText: "Ajouter un commentaire...",
@@ -266,13 +266,13 @@ class _PostCardState extends State<PostCard> {
                                                 icon: const Icon(Icons.send),
                                                 color: primaryColor,
                                                 onPressed: () {
-                                                  if (_modalCommentController.text.isNotEmpty) {
+                                                  if (modalCommentController.text.isNotEmpty) {
                                                     setModalState(() {
                                                       comments.add({
                                                         'username': 'Vous',
-                                                        'content': _modalCommentController.text,
+                                                        'content': modalCommentController.text,
                                                       });
-                                                      _modalCommentController.clear();
+                                                      modalCommentController.clear();
                                                     });
                                                   }
                                                 },

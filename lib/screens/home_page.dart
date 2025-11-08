@@ -516,7 +516,7 @@ class _HomePageState extends State<HomePage> {
   void _showFavorites() {
     showModalBottomSheet(
       context: context,
-      builder: (_) => Container(
+      builder: (_) => SizedBox(
         height: 400,
         child: const Center(child: Text("Aucun favori pour l'instant")),
       ),
@@ -526,7 +526,7 @@ class _HomePageState extends State<HomePage> {
   void _showChats() {
     showModalBottomSheet(
       context: context,
-      builder: (_) => Container(
+      builder: (_) => SizedBox(
         height: 400,
         child: const Center(child: Text("Chats à venir...")),
       ),
@@ -554,14 +554,14 @@ class _HomePageState extends State<HomePage> {
     String level,
     String classe,
   ) {
-    final TextEditingController _groupController = TextEditingController();
+    final TextEditingController groupController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: Text("Créer un groupe ($category > $level > $classe)"),
         content: TextField(
-          controller: _groupController,
+          controller: groupController,
           decoration: const InputDecoration(hintText: "Nom du groupe"),
         ),
         actions: [
@@ -571,7 +571,7 @@ class _HomePageState extends State<HomePage> {
           ),
           ElevatedButton(
             onPressed: () {
-              String newGroup = _groupController.text.trim();
+              String newGroup = groupController.text.trim();
               if (newGroup.isNotEmpty) {
                 setState(() {
                   createdGroups[category]![level]![classe]!.add(newGroup);

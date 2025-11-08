@@ -16,8 +16,8 @@ class _ProfilePageState extends State<ProfilePage> {
   String _username = "Feriel Tira";
   String _pseudo = "@feriel";
   String _bio = "Étudiante en informatique 🌟";
-  int _friendsCount = 56;
-  int _postsCount = 10;
+  final int _friendsCount = 56;
+  final int _postsCount = 10;
   int _favoritesCount = 5;
 
   // 0: Publications, 1: À propos, 2: Amis
@@ -167,7 +167,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   const SizedBox(height: 20),
 
                   // Bouton d'action - Modifier profil seulement
-                  Container(
+                  SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
                       onPressed: _editProfile,
@@ -339,7 +339,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
           )
-          .toList(),
+          ,
 
       if (_userPosts.isEmpty)
         Container(
@@ -413,7 +413,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                 )
-                .toList(),
+                ,
           ],
         ),
       ),
