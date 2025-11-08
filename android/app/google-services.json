@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "557841316955",
+    "project_id": "connecty-3e62d",
+    "storage_bucket": "connecty-3e62d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:557841316955:android:ac012918e534456dab537e",
+        "android_client_info": {
+          "package_name": "com.connecty.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAYisRmqikF9JCPAw0K7-7-8qUJ6-lw8r4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

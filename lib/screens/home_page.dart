@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../widgets/post_card.dart';
 import 'profile_page.dart';
+import 'login_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -106,7 +107,8 @@ class _HomePageState extends State<HomePage> {
     final displayedPosts = posts.where((p) {
       final matchesCategory =
           selectedCategory.isEmpty || p["category"] == selectedCategory;
-      final matchesSearch = searchQuery.isEmpty ||
+      final matchesSearch =
+          searchQuery.isEmpty ||
           p["username"]!.toLowerCase().contains(searchQuery) ||
           p["content"]!.toLowerCase().contains(searchQuery);
       return matchesCategory && matchesSearch;
@@ -149,10 +151,14 @@ class _HomePageState extends State<HomePage> {
                         hintStyle: const TextStyle(color: Colors.black54),
                         filled: true,
                         fillColor: Colors.white,
-                        prefixIcon:
-                            const Icon(Icons.search, color: Colors.black54),
+                        prefixIcon: const Icon(
+                          Icons.search,
+                          color: Colors.black54,
+                        ),
                         contentPadding: const EdgeInsets.symmetric(
-                            vertical: 0, horizontal: 0),
+                          vertical: 0,
+                          horizontal: 0,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
@@ -179,7 +185,8 @@ class _HomePageState extends State<HomePage> {
                         content: TextField(
                           controller: _searchController,
                           decoration: const InputDecoration(
-                              hintText: "Rechercher..."),
+                            hintText: "Rechercher...",
+                          ),
                           onChanged: (value) {
                             setState(() {
                               searchQuery = value.toLowerCase();
@@ -211,18 +218,16 @@ class _HomePageState extends State<HomePage> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const ProfilePage()),
+                    MaterialPageRoute(
+                      builder: (context) => const ProfilePage(),
+                    ),
                   );
                 },
               ),
             ],
           ),
           drawer: isMobile
-              ? Drawer(
-                  child: SingleChildScrollView(
-                    child: _buildSidebar(),
-                  ),
-                )
+              ? Drawer(child: SingleChildScrollView(child: _buildSidebar()))
               : null,
           body: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -246,11 +251,15 @@ class _HomePageState extends State<HomePage> {
                               (u) => ListTile(
                                 leading: CircleAvatar(
                                   backgroundColor: sidebarColor,
-                                  child: Text(u[0],
-                                      style: const TextStyle(color: Colors.black)),
+                                  child: Text(
+                                    u[0],
+                                    style: const TextStyle(color: Colors.black),
+                                  ),
                                 ),
-                                title:
-                                    Text(u, style: const TextStyle(color: Colors.black)),
+                                title: Text(
+                                  u,
+                                  style: const TextStyle(color: Colors.black),
+                                ),
                               ),
                             ),
                       ...displayedPosts.map(
@@ -262,9 +271,11 @@ class _HomePageState extends State<HomePage> {
                             imageUrl: post["imageUrl"],
                             onFavoriteToggle: (postMap, isFav) {
                               setState(() {
-                                final indexPost = posts.indexWhere((p) =>
-                                    p["username"] == postMap["username"] &&
-                                    p["content"] == postMap["content"]);
+                                final indexPost = posts.indexWhere(
+                                  (p) =>
+                                      p["username"] == postMap["username"] &&
+                                      p["content"] == postMap["content"],
+                                );
                                 if (indexPost != -1) {
                                   posts[indexPost]["isFavorite"] = isFav;
                                 }
@@ -299,57 +310,127 @@ class _HomePageState extends State<HomePage> {
           const SizedBox(height: 10),
           ListTile(
             leading: const Icon(Icons.group, color: Colors.black87),
-            title: const Text("Groupes",
-                style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+            title: const Text(
+              "Groupes",
+              style: TextStyle(
+                color: Colors.black87,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
           const Divider(color: Colors.black26),
-          ...createdGroups.keys.map((category) => ExpansionTile(
-                leading: _getCategoryIcon(category),
-                title: Text(category,
-                    style: const TextStyle(
-                        color: Colors.black87, fontWeight: FontWeight.bold)),
-                children: [
-                  ...createdGroups[category]!.keys.map((level) => ExpansionTile(
-                        title: Text(level,
-                            style: const TextStyle(
-                                color: Colors.black87, fontWeight: FontWeight.w500)),
-                        children: [
-                          ...createdGroups[category]![level]!.keys.map(
-                            (classe) => Column(
-                              children: [
-                                ListTile(
-                                  leading: const Icon(Icons.add, color: Colors.green),
-                                  title: const Text("Créer un groupe",
-                                      style: TextStyle(color: Colors.black87)),
-                                  onTap: () {
-                                    _showCreateGroupDialog(context, category, level, classe);
-                                  },
-                                ),
-                                ...createdGroups[category]![level]![classe]!
-                                    .map(
-                                  (groupName) => ListTile(
-                                    leading: const Icon(Icons.group, color: Colors.black54),
-                                    title: Text(groupName,
-                                        style: const TextStyle(color: Colors.black87)),
-                                  ),
-                                ),
-                              ],
+          ...createdGroups.keys.map(
+            (category) => ExpansionTile(
+              leading: _getCategoryIcon(category),
+              title: Text(
+                category,
+                style: const TextStyle(
+                  color: Colors.black87,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              children: [
+                ...createdGroups[category]!.keys.map(
+                  (level) => ExpansionTile(
+                    title: Text(
+                      level,
+                      style: const TextStyle(
+                        color: Colors.black87,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    children: [
+                      ...createdGroups[category]![level]!.keys.map(
+                        (classe) => Column(
+                          children: [
+                            ListTile(
+                              leading: const Icon(
+                                Icons.add,
+                                color: Colors.green,
+                              ),
+                              title: const Text(
+                                "Créer un groupe",
+                                style: TextStyle(color: Colors.black87),
+                              ),
+                              onTap: () {
+                                _showCreateGroupDialog(
+                                  context,
+                                  category,
+                                  level,
+                                  classe,
+                                );
+                              },
                             ),
-                          ),
-                        ],
-                      )),
-                ],
-              )),
+                            ...createdGroups[category]![level]![classe]!.map(
+                              (groupName) => ListTile(
+                                leading: const Icon(
+                                  Icons.group,
+                                  color: Colors.black54,
+                                ),
+                                title: Text(
+                                  groupName,
+                                  style: const TextStyle(color: Colors.black87),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
           const Divider(color: Colors.black26),
           ListTile(
             leading: const Icon(Icons.settings, color: Colors.black87),
-            title: const Text("Paramètres", style: TextStyle(color: Colors.black87)),
+            title: const Text(
+              "Paramètres",
+              style: TextStyle(color: Colors.black87),
+            ),
             onTap: () {},
           ),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.black87),
-            title: const Text("Déconnexion", style: TextStyle(color: Colors.black87)),
-            onTap: () {},
+            title: const Text(
+              "Déconnexion",
+              style: TextStyle(color: Colors.black87),
+            ),
+            onTap: () {
+              // On affiche une boîte de confirmation
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text("Confirmation"),
+                  content: const Text(
+                    "Voulez-vous vraiment vous déconnecter ?",
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context), // Annuler
+                      child: const Text("Annuler"),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                      ),
+                      onPressed: () {
+                        Navigator.pop(context); // Fermer la boîte
+                        // Puis naviguer vers la page de connexion
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const LoginPage(),
+                          ),
+                        );
+                      },
+                      child: const Text("Se déconnecter"),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -361,19 +442,32 @@ class _HomePageState extends State<HomePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("🎓 Quiz éducatif du jour",
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.black)),
+          const Text(
+            "🎓 Quiz éducatif du jour",
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+              color: Colors.black,
+            ),
+          ),
           const SizedBox(height: 4),
           Text(
             quiz["question"],
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500, color: Colors.black87),
+            style: const TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w500,
+              color: Colors.black87,
+            ),
           ),
           const SizedBox(height: 4),
           ...quiz["options"].map<Widget>((option) {
             return RadioListTile<String>(
               contentPadding: const EdgeInsets.symmetric(horizontal: 0),
               dense: true,
-              title: Text(option, style: const TextStyle(color: Colors.black87)),
+              title: Text(
+                option,
+                style: const TextStyle(color: Colors.black87),
+              ),
               value: option,
               groupValue: selectedAnswer,
               onChanged: (value) {
@@ -394,15 +488,19 @@ class _HomePageState extends State<HomePage> {
             Text(
               feedbackMessage,
               style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: feedbackMessage.startsWith("✅") ? Colors.green : Colors.red),
+                fontWeight: FontWeight.bold,
+                color: feedbackMessage.startsWith("✅")
+                    ? Colors.green
+                    : Colors.red,
+              ),
             ),
           ],
           const SizedBox(height: 8),
           ElevatedButton(
             onPressed: () {
               setState(() {
-                currentQuizIndex = (currentQuizIndex + 1) % quizQuestions.length;
+                currentQuizIndex =
+                    (currentQuizIndex + 1) % quizQuestions.length;
                 selectedAnswer = null;
                 feedbackMessage = "";
               });
@@ -451,7 +549,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showCreateGroupDialog(
-      BuildContext context, String category, String level, String classe) {
+    BuildContext context,
+    String category,
+    String level,
+    String classe,
+  ) {
     final TextEditingController _groupController = TextEditingController();
 
     showDialog(
@@ -460,9 +562,7 @@ class _HomePageState extends State<HomePage> {
         title: Text("Créer un groupe ($category > $level > $classe)"),
         content: TextField(
           controller: _groupController,
-          decoration: const InputDecoration(
-            hintText: "Nom du groupe",
-          ),
+          decoration: const InputDecoration(hintText: "Nom du groupe"),
         ),
         actions: [
           TextButton(

@@ -1,3 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class RegisterPage extends StatefulWidget {
@@ -15,6 +17,57 @@ class _RegisterPageState extends State<RegisterPage> {
   final passwordController = TextEditingController();
 
   bool _obscurePassword = true;
+  bool _isLoading = false;
+
+  Future<void> registerUser() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      //Créer le compte Firebase Auth
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: emailController.text.trim(),
+            password: passwordController.text.trim(),
+          );
+
+      //Sauvegarder les infos dans Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
+            'name': nameController.text.trim(),
+            'age': int.parse(ageController.text.trim()),
+            'email': emailController.text.trim(),
+          });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Compte créé avec succès "),
+          backgroundColor: Colors.deepPurple,
+        ),
+      );
+
+      // Attendre un peu avant de quitter la page
+      await Future.delayed(const Duration(seconds: 2));
+
+      Navigator.pop(context); // retour vers LoginPage
+    } on FirebaseAuthException catch (e) {
+      String message = "Une erreur est survenue";
+      if (e.code == 'email-already-in-use') {
+        message = "Cet e-mail est déjà utilisé.";
+      } else if (e.code == 'weak-password') {
+        message = "Mot de passe trop faible.";
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -66,6 +119,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     // nom
                     TextFormField(
                       controller: nameController,
+                      style: const TextStyle(color: Colors.deepPurple),
                       decoration: InputDecoration(
                         prefixIcon: const Icon(
                           Icons.person,
@@ -74,6 +128,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         filled: true,
                         fillColor: Colors.deepPurple[50],
                         hintText: "Nom complet",
+                        hintStyle: const TextStyle(color: Colors.deepPurple),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide.none,
@@ -92,6 +147,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     TextFormField(
                       controller: ageController,
                       keyboardType: TextInputType.number,
+                      style: const TextStyle(color: Colors.deepPurple),
                       decoration: InputDecoration(
                         prefixIcon: const Icon(
                           Icons.cake,
@@ -100,6 +156,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         filled: true,
                         fillColor: Colors.deepPurple[50],
                         hintText: "Âge (13-18 ans)",
+                        hintStyle: const TextStyle(color: Colors.deepPurple),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide.none,
@@ -123,6 +180,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     // email
                     TextFormField(
                       controller: emailController,
+                      style: const TextStyle(color: Colors.deepPurple),
                       decoration: InputDecoration(
                         prefixIcon: const Icon(
                           Icons.email_outlined,
@@ -131,6 +189,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         filled: true,
                         fillColor: Colors.deepPurple[50],
                         hintText: "Adresse e-mail",
+                        hintStyle: const TextStyle(color: Colors.deepPurple),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide.none,
@@ -146,10 +205,11 @@ class _RegisterPageState extends State<RegisterPage> {
                     ),
                     const SizedBox(height: 15),
 
-                    // mot de passe 👁️
+                    // mot de passe
                     TextFormField(
                       controller: passwordController,
                       obscureText: _obscurePassword,
+                      style: const TextStyle(color: Colors.deepPurple),
                       decoration: InputDecoration(
                         prefixIcon: const Icon(
                           Icons.lock_outline,
@@ -171,6 +231,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         filled: true,
                         fillColor: Colors.deepPurple[50],
                         hintText: "Mot de passe",
+                        hintStyle: const TextStyle(color: Colors.deepPurple),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(20),
                           borderSide: BorderSide.none,
@@ -187,17 +248,9 @@ class _RegisterPageState extends State<RegisterPage> {
 
                     // bouton inscription
                     ElevatedButton(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Compte créé avec succès"),
-                              backgroundColor: Colors.deepPurple,
-                            ),
-                          );
-                          Navigator.pop(context);
-                        }
-                      },
+                      onPressed: _isLoading
+                          ? null
+                          : registerUser, // Appel direct de ta fonction d'inscription
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.deepPurple,
                         foregroundColor: Colors.white,
@@ -207,13 +260,15 @@ class _RegisterPageState extends State<RegisterPage> {
                         ),
                         elevation: 8,
                       ),
-                      child: const Text(
-                        "S'inscrire",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                      child: _isLoading
+                          ? const CircularProgressIndicator(color: Colors.white)
+                          : const Text(
+                              "S'inscrire",
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                     ),
                     const SizedBox(height: 25),
 

@@ -1,4 +1,4 @@
-package com.example.connecty_app
+package com.connecty.app
 
 import io.flutter.embedding.android.FlutterActivity
 

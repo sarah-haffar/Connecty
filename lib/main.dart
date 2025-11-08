@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import 'screens/home_page.dart';
 import 'screens/login_page.dart';
+import 'screens/profile_page.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:io' show Platform;
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(); // initialisation Firebase
   runApp(const MyApp());
 }
 
@@ -35,8 +41,9 @@ class MyApp extends StatelessWidget {
           bodyLarge: TextStyle(color: Colors.black, fontSize: 18),
         ),
       ),
-      home: const HomePage(),
-      //home: const LoginPage(),
+      //home: const HomePage(),
+      home: const LoginPage(),
+      // home: const ProfilePage(),
     );
   }
 }
