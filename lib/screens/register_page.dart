@@ -49,6 +49,13 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
       );
 
+      if (mounted) {
+        setState(() => _isLoading = false);
+        Future.delayed(const Duration(seconds: 1), () {
+          if (mounted) Navigator.pop(context);
+        });
+      }
+
       // Attendre un peu avant de quitter la page
       await Future.delayed(const Duration(seconds: 2));
 

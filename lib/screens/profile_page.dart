@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
 import '../widgets/post_card.dart';
 import 'home_page.dart';
+import '../services/cloudinary_service.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -12,48 +16,323 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final Color primaryColor = const Color(0xFF6A1B9A);
   final Color sidebarColor = const Color(0xFFEDE7F6);
+  
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ImagePicker _picker = ImagePicker();
 
-  String _username = "Feriel Tira";
-  String _pseudo = "@feriel";
-  String _bio = "Étudiante en informatique 🌟";
-  final int _friendsCount = 56;
-  final int _postsCount = 10;
-  int _favoritesCount = 5;
+  User? get currentUser => _auth.currentUser;
+  
+  // Données utilisateur
+  Map<String, dynamic> _userData = {};
+  List<Map<String, dynamic>> _userPosts = [];
+  List<String> _userFriends = [];
+  bool _isLoading = true;
+  bool _isSaving = false;
 
-  // 0: Publications, 1: À propos, 2: Amis
+  // Contrôleurs pour l'édition
+  final TextEditingController _bioController = TextEditingController();
+  final TextEditingController _ageController = TextEditingController();
+  final TextEditingController _schoolController = TextEditingController();
+  final TextEditingController _locationController = TextEditingController();
+  final TextEditingController _interestsController = TextEditingController();
+
   int _selectedSection = 0;
 
-  // Informations supplémentaires
-  final Map<String, String> _aboutInfo = {
-    "Âge": "21 ans",
-    "École": "ISETKL",
-    "Lieu": "Kelibia, Tunisie",
-    "Centres d'intérêt": "Programmation, Design, Lecture",
-  };
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+    _loadUserPosts();
+    _loadUserFriends();
+  }
 
-  // Amis (exemple)
-  final List<String> _friends = ["Baha", "Sarah", "Ahmed", "Nora", "Youssef"];
+  Future<void> _loadUserData() async {
+    try {
+      if (currentUser == null) return;
 
-  // Publications de l'utilisateur
-  final List<Map<String, dynamic>> _userPosts = [
-    {
-      "username": "Feriel Tira",
-      "content": "Première publication sur mon profil Flutter",
-      "category": "Général",
-      "imageUrl": null,
-      "isFavorite": false,
-    },
-    {
-      "username": "Feriel Tira",
-      "content": "Nouveau projet en cours de développement 🚀",
-      "category": "Programmation",
-      "imageUrl": "assets/post/robo.jpg",
-      "isFavorite": true,
-    },
-  ];
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(currentUser!.uid)
+          .get();
+
+      if (userDoc.exists) {
+        setState(() {
+          _userData = userDoc.data()!;
+          _initializeControllers();
+        });
+      } else {
+        // Créer le profil utilisateur avec champs vides
+        await _createUserProfile();
+      }
+    } catch (e) {
+      print("❌ Erreur chargement données utilisateur: $e");
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _createUserProfile() async {
+  try {
+    final newUserData = {
+      'uid': currentUser!.uid,
+      'email': currentUser!.email,
+      // UTILISEZ 'name' POUR ÊTRE COHÉRENT AVEC VOTRE BASE
+      'name': currentUser!.displayName ?? currentUser!.email!.split('@').first,
+      'pseudo': '@${currentUser!.email!.split('@').first}',
+      // CHAMPS VIDES INITIALEMENT
+      'bio': '',
+      'profileImage': null,
+      'age': '',
+      'school': '',
+      'location': '',
+      'interests': '',
+      'friendsCount': 0,
+      'postsCount': 0,
+      'favoritesCount': 0,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    };
+
+    await _firestore
+        .collection('users')
+        .doc(currentUser!.uid)
+        .set(newUserData);
+
+    setState(() {
+      _userData = newUserData;
+      _initializeControllers();
+    });
+    
+    print("✅ Profil utilisateur créé avec champs vides");
+  } catch (e) {
+    print("❌ Erreur création profil: $e");
+  }
+}
+
+  void _initializeControllers() {
+    _bioController.text = _userData['bio'] ?? '';
+    _ageController.text = _userData['age'] ?? '';
+    _schoolController.text = _userData['school'] ?? '';
+    _locationController.text = _userData['location'] ?? '';
+    _interestsController.text = _userData['interests'] ?? '';
+  }
+
+  Future<void> _loadUserPosts() async {
+  try {
+    if (currentUser == null) return;
+
+    final postsSnapshot = await _firestore
+        .collection('posts')
+        .where('userId', isEqualTo: currentUser!.uid)
+        .orderBy('timestamp', descending: true)
+        .get();
+
+    setState(() {
+      _userPosts = postsSnapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        return {
+          'id': doc.id,
+          // UTILISEZ 'name' ICI AUSSI
+          'username': data['userName'] ?? _userData['name'] ?? 'Utilisateur',
+          'content': data['text'] ?? '',
+          'category': data['categorie'] ?? 'Général',
+          'imageUrl': data['fileUrl'],
+          'fileType': data['fileType'],
+          'isFavorite': false,
+          'timestamp': data['timestamp'],
+        };
+      }).toList();
+    });
+  } catch (e) {
+    print("❌ Erreur chargement posts: $e");
+  }
+}
+  
+
+  Future<void> _loadUserFriends() async {
+    try {
+      if (currentUser == null) return;
+
+      final friendsSnapshot = await _firestore
+          .collection('users')
+          .doc(currentUser!.uid)
+          .collection('friends')
+          .get();
+
+      setState(() {
+        _userFriends = friendsSnapshot.docs.map((doc) => doc.id).toList();
+      });
+    } catch (e) {
+      print("❌ Erreur chargement amis: $e");
+    }
+  }
+
+  Future<void> _updateProfile() async {
+    try {
+      setState(() => _isSaving = true);
+
+      final updatedData = {
+        'bio': _bioController.text.trim(),
+        'age': _ageController.text.trim(),
+        'school': _schoolController.text.trim(),
+        'location': _locationController.text.trim(),
+        'interests': _interestsController.text.trim(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      await _firestore
+          .collection('users')
+          .doc(currentUser!.uid)
+          .update(updatedData);
+
+      // Mettre à jour les données locales
+      setState(() {
+        _userData.addAll(updatedData);
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.white, size: 20),
+              SizedBox(width: 8),
+              Text('Profil mis à jour avec succès !'),
+            ],
+          ),
+          backgroundColor: Colors.green,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors de la mise à jour: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _updateProfileImage() async {
+    try {
+      final pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+
+      if (pickedFile != null) {
+        setState(() => _isSaving = true);
+
+        // Upload vers Cloudinary
+        final imageUrl = await CloudinaryService.uploadFile(
+          pickedFile, 
+          'profile_image'
+        );
+
+        if (imageUrl != null) {
+          await _firestore
+              .collection('users')
+              .doc(currentUser!.uid)
+              .update({
+                'profileImage': imageUrl,
+                'updatedAt': FieldValue.serverTimestamp(),
+              });
+
+          setState(() {
+            _userData['profileImage'] = imageUrl;
+          });
+
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Photo de profil mise à jour !'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur mise à jour photo: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isSaving = false);
+    }
+  }
+
+  // Getters pour les données utilisateur avec valeurs par défaut si vides
+  String get _username => _userData['name'] ?? 
+                       _userData['username'] ?? 
+                       currentUser?.displayName ?? 
+                       currentUser?.email?.split('@').first ?? 
+                       'Utilisateur';
+  String get _pseudo => _userData['pseudo'] ?? 
+                     '@${currentUser?.email?.split('@').first}' ?? 
+                     '@utilisateur';
+  String get _bio => _userData['bio']?.isNotEmpty == true 
+    ? _userData['bio'] 
+    : 'Bienvenue sur mon profil ! 👋\nCliquez sur "Modifier profil" pour personnaliser.';
+
+int get _friendsCount => _userFriends.length;
+int get _postsCount => _userPosts.length;
+int get _favoritesCount => _userData['favoritesCount'] ?? 0;
+
+  Map<String, String> get _aboutInfo {
+    return {
+      "Âge": _userData['age']?.isNotEmpty == true 
+          ? _userData['age'] 
+          : 'Non renseigné',
+      "École": _userData['school']?.isNotEmpty == true 
+          ? _userData['school'] 
+          : 'Non renseigné',
+      "Lieu": _userData['location']?.isNotEmpty == true 
+          ? _userData['location'] 
+          : 'Non renseigné',
+      "Centres d'intérêt": _userData['interests']?.isNotEmpty == true 
+          ? _userData['interests'] 
+          : 'Non renseigné',
+    };
+  }
+
+  @override
+  void dispose() {
+    _bioController.dispose();
+    _ageController.dispose();
+    _schoolController.dispose();
+    _locationController.dispose();
+    _interestsController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: sidebarColor,
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: primaryColor),
+              const SizedBox(height: 16),
+              Text(
+                'Chargement du profil...',
+                style: TextStyle(
+                  color: primaryColor,
+                  fontSize: 16,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: sidebarColor,
       appBar: AppBar(
@@ -80,42 +359,49 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Section en-tête du profil
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: const BorderRadius.only(
-                  bottomLeft: Radius.circular(20),
-                  bottomRight: Radius.circular(20),
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.2),
-                    blurRadius: 10,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
+      body: _buildProfileContent(),
+    );
+  }
+
+  Widget _buildProfileContent() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          // Section en-tête du profil
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: const BorderRadius.only(
+                bottomLeft: Radius.circular(20),
+                bottomRight: Radius.circular(20),
               ),
-              child: Column(
-                children: [
-                  // Photo de profil
-                  Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 50,
-                        backgroundColor: primaryColor.withOpacity(0.1),
-                        backgroundImage: const AssetImage(
-                          "assets/post/art.jpg",
-                        ),
-                      ),
-                      Positioned(
-                        bottom: 0,
-                        right: 0,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.2),
+                  blurRadius: 10,
+                  offset: const Offset(0, 3),
+                ),
+              ],
+            ),
+            child: Column(
+              children: [
+                // Photo de profil
+                Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 50,
+                      backgroundColor: primaryColor.withOpacity(0.1),
+                      backgroundImage: _userData['profileImage'] != null
+                          ? NetworkImage(_userData['profileImage']!) as ImageProvider
+                          : const AssetImage("assets/post/art.jpg"),
+                    ),
+                    Positioned(
+                      bottom: 0,
+                      right: 0,
+                      child: GestureDetector(
+                        onTap: _updateProfileImage,
                         child: Container(
                           padding: const EdgeInsets.all(6),
                           decoration: BoxDecoration(
@@ -129,86 +415,113 @@ class _ProfilePageState extends State<ProfilePage> {
                           ),
                         ),
                       ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Nom et pseudo
-                  Text(
-                    _username,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black,
                     ),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+
+                // Nom et pseudo
+                Text(
+                  _username,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black,
                   ),
+                ),
 
-                  const SizedBox(height: 4),
+                const SizedBox(height: 4),
 
-                  Text(
-                    _pseudo,
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: primaryColor,
-                      fontWeight: FontWeight.w500,
-                    ),
+                Text(
+                  _pseudo,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: primaryColor,
+                    fontWeight: FontWeight.w500,
                   ),
+                ),
 
-                  const SizedBox(height: 8),
+                const SizedBox(height: 12),
 
-                  // Bio
-                  Text(
+                // Bio
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: _userData['bio']?.isEmpty == true 
+                        ? Colors.orange.withOpacity(0.1)
+                        : Colors.grey.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
                     _bio,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(fontSize: 16, color: Colors.black87),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Bouton d'action - Modifier profil seulement
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: _editProfile,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      icon: const Icon(Icons.edit, size: 20),
-                      label: const Text(
-                        "Modifier profil",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    style: TextStyle(
+                      fontSize: 16, 
+                      color: _userData['bio']?.isEmpty == true 
+                          ? Colors.orange
+                          : Colors.black87,
+                      fontStyle: _userData['bio']?.isEmpty == true 
+                          ? FontStyle.italic
+                          : FontStyle.normal,
                     ),
                   ),
-                ],
-              ),
-            ),
+                ),
 
-            // Section statistiques
-            Container(
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.grey.withOpacity(0.1),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
+                const SizedBox(height: 20),
+
+                // Bouton d'action - Modifier profil
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: _editProfile,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryColor,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    icon: const Icon(Icons.edit, size: 20),
+                    label: _isSaving
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            "Modifier profil",
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
-                ],
-              ),
-              child: Row(
+                ),
+              ],
+            ),
+          ),
+
+          // Section statistiques
+          Container(
+            margin: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.grey.withOpacity(0.1),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
                   _buildStatItem("Amis", _friendsCount),
@@ -216,34 +529,44 @@ class _ProfilePageState extends State<ProfilePage> {
                   _buildStatItem("Favoris", _favoritesCount),
                 ],
               ),
+          ),
+
+          // Section navigation (Publications/À propos/Amis)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
             ),
-
-            // Section navigation (Publications/À propos/Amis)
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  _buildNavItem("Publications", Icons.grid_on, 0),
-                  _buildNavItem("À propos", Icons.info_outline, 1),
-                  _buildNavItem("Amis", Icons.people, 2),
-                ],
-              ),
+            child: Row(
+              children: [
+                _buildNavItem("Publications", Icons.grid_on, 0),
+                _buildNavItem("À propos", Icons.info_outline, 1),
+                _buildNavItem("Amis", Icons.people, 2),
+              ],
             ),
+          ),
 
-            const SizedBox(height: 16),
+          const SizedBox(height: 16),
 
-            // Contenu dynamique
-            if (_selectedSection == 0) ..._buildPostsSection(),
-            if (_selectedSection == 1) ..._buildAboutSection(),
-            if (_selectedSection == 2) ..._buildFriendsSection(),
-          ],
-        ),
+          // Contenu dynamique basé sur la sélection
+          _buildSelectedSection(),
+        ],
       ),
     );
+  }
+
+  Widget _buildSelectedSection() {
+    switch (_selectedSection) {
+      case 0:
+        return _buildPostsSection();
+      case 1:
+        return _buildAboutSection();
+      case 2:
+        return _buildFriendsSection();
+      default:
+        return _buildPostsSection();
+    }
   }
 
   Widget _buildStatItem(String label, int value) {
@@ -309,150 +632,177 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  List<Widget> _buildPostsSection() {
-    return [
-      ..._userPosts
-          .map(
-            (post) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: PostCard(
-                username: post["username"]!,
-                content: post["content"]!,
-                imageUrl: post["imageUrl"],
-                onFavoriteToggle: (postMap, isFav) {
-                  setState(() {
-                    final indexPost = _userPosts.indexWhere(
-                      (p) =>
-                          p["username"] == postMap["username"] &&
-                          p["content"] == postMap["content"],
-                    );
-                    if (indexPost != -1) {
-                      _userPosts[indexPost]["isFavorite"] = isFav;
-                      if (isFav) {
-                        _favoritesCount++;
-                      } else {
-                        _favoritesCount--;
-                      }
-                    }
-                  });
-                },
-              ),
+  Widget _buildPostsSection() {
+    return Column(
+      children: [
+        ..._userPosts.map(
+          (post) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: PostCard(
+              username: post["username"]!,
+              content: post["content"]!,
+              imageUrl: post["imageUrl"],
+              fileType: post["fileType"],
+              onFavoriteToggle: (postMap, isFav) {
+                // Logique des favoris si nécessaire
+              },
             ),
-          )
-          ,
-
-      if (_userPosts.isEmpty)
-        Container(
-          padding: const EdgeInsets.all(40),
-          child: Column(
-            children: [
-              Icon(
-                Icons.photo_library_outlined,
-                size: 60,
-                color: primaryColor.withOpacity(0.3),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                "Aucune publication",
-                style: TextStyle(
-                  fontSize: 16,
-                  color: primaryColor.withOpacity(0.6),
-                ),
-              ),
-            ],
           ),
         ),
-    ];
+        if (_userPosts.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(40),
+            child: Column(
+              children: [
+                Icon(
+                  Icons.photo_library_outlined,
+                  size: 60,
+                  color: primaryColor.withOpacity(0.3),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  "Aucune publication",
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: primaryColor.withOpacity(0.6),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  "Partagez votre première publication !",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: primaryColor.withOpacity(0.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
   }
 
-  List<Widget> _buildAboutSection() {
-    return [
-      Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Informations personnelles",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
-              ),
+  Widget _buildAboutSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Informations personnelles",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
             ),
-            const SizedBox(height: 16),
-            ..._aboutInfo.entries
-                .map(
-                  (entry) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
-                          width: 120,
-                          child: Text(
-                            "${entry.key} :",
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w500,
-                              color: Colors.black87,
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: Text(
-                            entry.value,
-                            style: const TextStyle(color: Colors.black54),
-                          ),
-                        ),
-                      ],
+          ),
+          const SizedBox(height: 16),
+          
+          // Indicateur si profil incomplet
+          if (_aboutInfo.values.every((value) => value == 'Non renseigné'))
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Colors.orange.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info, color: Colors.orange, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Complétez votre profil pour personnaliser cette section',
+                      style: TextStyle(
+                        color: Colors.orange,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
-                )
-                ,
-          ],
-        ),
-      ),
-    ];
-  }
-
-  List<Widget> _buildFriendsSection() {
-    return [
-      Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              "Amis",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black,
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              children: _friends
-                  .map(
+          
+          ..._aboutInfo.entries.map(
+            (entry) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 120,
+                    child: Text(
+                      "${entry.key} :",
+                      style: TextStyle(
+                        fontWeight: FontWeight.w500,
+                        color: entry.value == 'Non renseigné' 
+                            ? Colors.orange
+                            : Colors.black87,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: Text(
+                      entry.value,
+                      style: TextStyle(
+                        color: entry.value == 'Non renseigné' 
+                            ? Colors.orange
+                            : Colors.black54,
+                        fontStyle: entry.value == 'Non renseigné' 
+                            ? FontStyle.italic
+                            : FontStyle.normal,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFriendsSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            "Amis",
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 12),
+          _userFriends.isNotEmpty
+              ? Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: _userFriends.map(
                     (friend) => Column(
                       children: [
                         CircleAvatar(
                           radius: 30,
                           backgroundColor: primaryColor.withOpacity(0.1),
                           child: Text(
-                            friend[0],
+                            friend.isNotEmpty ? friend[0].toUpperCase() : '?',
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -470,27 +820,33 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ],
                     ),
-                  )
-                  .toList(),
-            ),
-          ],
-        ),
+                  ).toList(),
+                )
+              : Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.people_outline,
+                        size: 50,
+                        color: primaryColor.withOpacity(0.3),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Aucun ami pour le moment",
+                        style: TextStyle(
+                          color: primaryColor.withOpacity(0.6),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+        ],
       ),
-    ];
+    );
   }
 
   void _editProfile() {
-    // Créer des contrôleurs temporaires avec les valeurs actuelles
-    final usernameController = TextEditingController(text: _username);
-    final pseudoController = TextEditingController(text: _pseudo);
-    final bioController = TextEditingController(text: _bio);
-    final ageController = TextEditingController(text: _aboutInfo["Âge"]);
-    final schoolController = TextEditingController(text: _aboutInfo["École"]);
-    final locationController = TextEditingController(text: _aboutInfo["Lieu"]);
-    final interestsController = TextEditingController(
-      text: _aboutInfo["Centres d'intérêt"],
-    );
-
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -519,21 +875,26 @@ class _ProfilePageState extends State<ProfilePage> {
                   CircleAvatar(
                     radius: 40,
                     backgroundColor: primaryColor.withOpacity(0.1),
-                    backgroundImage: const AssetImage("assets/post/art.jpg"),
+                    backgroundImage: _userData['profileImage'] != null
+                        ? NetworkImage(_userData['profileImage']!) as ImageProvider
+                        : const AssetImage("assets/post/art.jpg"),
                   ),
                   Positioned(
                     bottom: 0,
                     right: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: primaryColor,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.camera_alt,
-                        color: Colors.white,
-                        size: 14,
+                    child: GestureDetector(
+                      onTap: _updateProfileImage,
+                      child: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: primaryColor,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.camera_alt,
+                          color: Colors.white,
+                          size: 14,
+                        ),
                       ),
                     ),
                   ),
@@ -541,93 +902,49 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 16),
 
+              // Indication champs optionnels
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  'Tous les champs sont optionnels',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontSize: 12,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 12),
+
               // Formulaire de modification
               TextField(
-                controller: usernameController,
-                style: const TextStyle(color: Colors.black),
-                decoration: InputDecoration(
-                  labelText: "Nom complet",
-                  labelStyle: TextStyle(color: primaryColor),
-                  hintStyle: const TextStyle(color: Colors.black54),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: primaryColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: primaryColor, width: 2),
-                  ),
-                  prefixIcon: Icon(Icons.person, color: primaryColor),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              TextField(
-                controller: pseudoController,
-                style: const TextStyle(color: Colors.black),
-                decoration: InputDecoration(
-                  labelText: "Pseudo",
-                  labelStyle: TextStyle(color: primaryColor),
-                  hintStyle: const TextStyle(color: Colors.black54),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: primaryColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: primaryColor, width: 2),
-                  ),
-                  prefixIcon: Icon(Icons.alternate_email, color: primaryColor),
-                ),
-              ),
-              const SizedBox(height: 12),
-
-              TextField(
-                controller: bioController,
-                style: const TextStyle(color: Colors.black),
-                maxLines: 3,
+                controller: _bioController,
                 decoration: InputDecoration(
                   labelText: "Bio",
                   labelStyle: TextStyle(color: primaryColor),
-                  hintStyle: const TextStyle(color: Colors.black54),
+                  hintText: "Décrivez-vous en quelques mots...",
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: primaryColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: primaryColor, width: 2),
                   ),
                   prefixIcon: Icon(Icons.description, color: primaryColor),
                 ),
-              ),
-              const SizedBox(height: 16),
-
-              // Informations personnelles
-              Text(
-                "Informations personnelles",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: primaryColor,
-                ),
+                maxLines: 3,
               ),
               const SizedBox(height: 12),
 
               TextField(
-                controller: ageController,
-                style: const TextStyle(color: Colors.black),
+                controller: _ageController,
                 decoration: InputDecoration(
                   labelText: "Âge",
                   labelStyle: TextStyle(color: primaryColor),
-                  hintStyle: const TextStyle(color: Colors.black54),
+                  hintText: "ex: 21 ans",
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: primaryColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: primaryColor, width: 2),
                   ),
                   prefixIcon: Icon(Icons.cake, color: primaryColor),
                 ),
@@ -635,19 +952,13 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 12),
 
               TextField(
-                controller: schoolController,
-                style: const TextStyle(color: Colors.black),
+                controller: _schoolController,
                 decoration: InputDecoration(
                   labelText: "École",
                   labelStyle: TextStyle(color: primaryColor),
-                  hintStyle: const TextStyle(color: Colors.black54),
+                  hintText: "ex: ISET Kelibia",
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: primaryColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: primaryColor, width: 2),
                   ),
                   prefixIcon: Icon(Icons.school, color: primaryColor),
                 ),
@@ -655,19 +966,13 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 12),
 
               TextField(
-                controller: locationController,
-                style: const TextStyle(color: Colors.black),
+                controller: _locationController,
                 decoration: InputDecoration(
                   labelText: "Lieu",
                   labelStyle: TextStyle(color: primaryColor),
-                  hintStyle: const TextStyle(color: Colors.black54),
+                  hintText: "ex: Kelibia, Tunisie",
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: primaryColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: primaryColor, width: 2),
                   ),
                   prefixIcon: Icon(Icons.location_on, color: primaryColor),
                 ),
@@ -675,85 +980,48 @@ class _ProfilePageState extends State<ProfilePage> {
               const SizedBox(height: 12),
 
               TextField(
-                controller: interestsController,
-                style: const TextStyle(color: Colors.black),
-                maxLines: 2,
+                controller: _interestsController,
                 decoration: InputDecoration(
                   labelText: "Centres d'intérêt",
                   labelStyle: TextStyle(color: primaryColor),
-                  hintStyle: const TextStyle(color: Colors.black54),
+                  hintText: "ex: Programmation, Design, Lecture",
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: primaryColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: primaryColor, width: 2),
                   ),
                   prefixIcon: Icon(Icons.interests, color: primaryColor),
                 ),
+                maxLines: 2,
               ),
             ],
           ),
         ),
         actions: [
-          // Bouton Annuler
           OutlinedButton(
-            onPressed: () {
-              Navigator.pop(context);
-            },
+            onPressed: () => Navigator.pop(context),
             style: OutlinedButton.styleFrom(
               foregroundColor: primaryColor,
               side: BorderSide(color: primaryColor),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
             ),
             child: const Text("Annuler"),
           ),
-
-          // Bouton Sauvegarder
           ElevatedButton(
-            onPressed: () {
-              // Appliquer les modifications localement
-              setState(() {
-                _username = usernameController.text;
-                _pseudo = pseudoController.text;
-                _bio = bioController.text;
-                _aboutInfo["Âge"] = ageController.text;
-                _aboutInfo["École"] = schoolController.text;
-                _aboutInfo["Lieu"] = locationController.text;
-                _aboutInfo["Centres d'intérêt"] = interestsController.text;
-              });
-
+            onPressed: _isSaving ? null : () async {
               Navigator.pop(context);
-
-              // Message de succès
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      Icon(Icons.check_circle, color: Colors.white),
-                      const SizedBox(width: 8),
-                      const Text("Profil modifié avec succès !"),
-                    ],
-                  ),
-                  backgroundColor: Colors.green,
-                  duration: const Duration(seconds: 2),
-                ),
-              );
+              await _updateProfile();
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryColor,
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
             ),
-            child: const Text("Sauvegarder"),
+            child: _isSaving
+                ? const SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text("Sauvegarder"),
           ),
         ],
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );
   }
