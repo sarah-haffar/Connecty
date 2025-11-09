@@ -16,13 +16,13 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   final Color primaryColor = const Color(0xFF6A1B9A);
   final Color sidebarColor = const Color(0xFFEDE7F6);
-  
+
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final ImagePicker _picker = ImagePicker();
 
   User? get currentUser => _auth.currentUser;
-  
+
   // Données utilisateur
   Map<String, dynamic> _userData = {};
   List<Map<String, dynamic>> _userPosts = [];
@@ -73,42 +73,43 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _createUserProfile() async {
-  try {
-    final newUserData = {
-      'uid': currentUser!.uid,
-      'email': currentUser!.email,
-      // UTILISEZ 'name' POUR ÊTRE COHÉRENT AVEC VOTRE BASE
-      'name': currentUser!.displayName ?? currentUser!.email!.split('@').first,
-      'pseudo': '@${currentUser!.email!.split('@').first}',
-      // CHAMPS VIDES INITIALEMENT
-      'bio': '',
-      'profileImage': null,
-      'age': '',
-      'school': '',
-      'location': '',
-      'interests': '',
-      'friendsCount': 0,
-      'postsCount': 0,
-      'favoritesCount': 0,
-      'createdAt': FieldValue.serverTimestamp(),
-      'updatedAt': FieldValue.serverTimestamp(),
-    };
+    try {
+      final newUserData = {
+        'uid': currentUser!.uid,
+        'email': currentUser!.email,
+        // UTILISEZ 'name' POUR ÊTRE COHÉRENT AVEC VOTRE BASE
+        'name':
+            currentUser!.displayName ?? currentUser!.email!.split('@').first,
+        'pseudo': '@${currentUser!.email!.split('@').first}',
+        // CHAMPS VIDES INITIALEMENT
+        'bio': '',
+        'profileImage': null,
+        'age': '',
+        'school': '',
+        'location': '',
+        'interests': '',
+        'friendsCount': 0,
+        'postsCount': 0,
+        'favoritesCount': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
 
-    await _firestore
-        .collection('users')
-        .doc(currentUser!.uid)
-        .set(newUserData);
+      await _firestore
+          .collection('users')
+          .doc(currentUser!.uid)
+          .set(newUserData);
 
-    setState(() {
-      _userData = newUserData;
-      _initializeControllers();
-    });
-    
-    print("✅ Profil utilisateur créé avec champs vides");
-  } catch (e) {
-    print("❌ Erreur création profil: $e");
+      setState(() {
+        _userData = newUserData;
+        _initializeControllers();
+      });
+
+      print("✅ Profil utilisateur créé avec champs vides");
+    } catch (e) {
+      print("❌ Erreur création profil: $e");
+    }
   }
-}
 
   void _initializeControllers() {
     _bioController.text = _userData['bio'] ?? '';
@@ -119,36 +120,35 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadUserPosts() async {
-  try {
-    if (currentUser == null) return;
+    try {
+      if (currentUser == null) return;
 
-    final postsSnapshot = await _firestore
-        .collection('posts')
-        .where('userId', isEqualTo: currentUser!.uid)
-        .orderBy('timestamp', descending: true)
-        .get();
+      final postsSnapshot = await _firestore
+          .collection('posts')
+          .where('userId', isEqualTo: currentUser!.uid)
+          .orderBy('timestamp', descending: true)
+          .get();
 
-    setState(() {
-      _userPosts = postsSnapshot.docs.map((doc) {
-        final data = doc.data() as Map<String, dynamic>;
-        return {
-          'id': doc.id,
-          // UTILISEZ 'name' ICI AUSSI
-          'username': data['userName'] ?? _userData['name'] ?? 'Utilisateur',
-          'content': data['text'] ?? '',
-          'category': data['categorie'] ?? 'Général',
-          'imageUrl': data['fileUrl'],
-          'fileType': data['fileType'],
-          'isFavorite': false,
-          'timestamp': data['timestamp'],
-        };
-      }).toList();
-    });
-  } catch (e) {
-    print("❌ Erreur chargement posts: $e");
+      setState(() {
+        _userPosts = postsSnapshot.docs.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          return {
+            'id': doc.id,
+            // UTILISEZ 'name' ICI AUSSI
+            'username': data['userName'] ?? _userData['name'] ?? 'Utilisateur',
+            'content': data['text'] ?? '',
+            'category': data['categorie'] ?? 'Général',
+            'imageUrl': data['fileUrl'],
+            'fileType': data['fileType'],
+            'isFavorite': false,
+            'timestamp': data['timestamp'],
+          };
+        }).toList();
+      });
+    } catch (e) {
+      print("❌ Erreur chargement posts: $e");
+    }
   }
-}
-  
 
   Future<void> _loadUserFriends() async {
     try {
@@ -228,18 +228,15 @@ class _ProfilePageState extends State<ProfilePage> {
 
         // Upload vers Cloudinary
         final imageUrl = await CloudinaryService.uploadFile(
-          pickedFile, 
-          'profile_image'
+          pickedFile,
+          'profile_image',
         );
 
         if (imageUrl != null) {
-          await _firestore
-              .collection('users')
-              .doc(currentUser!.uid)
-              .update({
-                'profileImage': imageUrl,
-                'updatedAt': FieldValue.serverTimestamp(),
-              });
+          await _firestore.collection('users').doc(currentUser!.uid).update({
+            'profileImage': imageUrl,
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
           setState(() {
             _userData['profileImage'] = imageUrl;
@@ -266,35 +263,37 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   // Getters pour les données utilisateur avec valeurs par défaut si vides
-  String get _username => _userData['name'] ?? 
-                       _userData['username'] ?? 
-                       currentUser?.displayName ?? 
-                       currentUser?.email?.split('@').first ?? 
-                       'Utilisateur';
-  String get _pseudo => _userData['pseudo'] ?? 
-                     '@${currentUser?.email?.split('@').first}' ?? 
-                     '@utilisateur';
-  String get _bio => _userData['bio']?.isNotEmpty == true 
-    ? _userData['bio'] 
-    : 'Bienvenue sur mon profil ! 👋\nCliquez sur "Modifier profil" pour personnaliser.';
+  String get _username =>
+      _userData['name'] ??
+      _userData['username'] ??
+      currentUser?.displayName ??
+      currentUser?.email?.split('@').first ??
+      'Utilisateur';
+  String get _pseudo =>
+      _userData['pseudo'] ??
+      '@${currentUser?.email?.split('@').first}' ??
+      '@utilisateur';
+  String get _bio => _userData['bio']?.isNotEmpty == true
+      ? _userData['bio']
+      : 'Bienvenue sur mon profil ! 👋\nCliquez sur "Modifier profil" pour personnaliser.';
 
-int get _friendsCount => _userFriends.length;
-int get _postsCount => _userPosts.length;
-int get _favoritesCount => _userData['favoritesCount'] ?? 0;
+  int get _friendsCount => _userFriends.length;
+  int get _postsCount => _userPosts.length;
+  int get _favoritesCount => _userData['favoritesCount'] ?? 0;
 
   Map<String, String> get _aboutInfo {
     return {
-      "Âge": _userData['age']?.isNotEmpty == true 
-          ? _userData['age'] 
+      "Âge": _userData['age']?.isNotEmpty == true
+          ? _userData['age']
           : 'Non renseigné',
-      "École": _userData['school']?.isNotEmpty == true 
-          ? _userData['school'] 
+      "École": _userData['school']?.isNotEmpty == true
+          ? _userData['school']
           : 'Non renseigné',
-      "Lieu": _userData['location']?.isNotEmpty == true 
-          ? _userData['location'] 
+      "Lieu": _userData['location']?.isNotEmpty == true
+          ? _userData['location']
           : 'Non renseigné',
-      "Centres d'intérêt": _userData['interests']?.isNotEmpty == true 
-          ? _userData['interests'] 
+      "Centres d'intérêt": _userData['interests']?.isNotEmpty == true
+          ? _userData['interests']
           : 'Non renseigné',
     };
   }
@@ -322,10 +321,7 @@ int get _favoritesCount => _userData['favoritesCount'] ?? 0;
               const SizedBox(height: 16),
               Text(
                 'Chargement du profil...',
-                style: TextStyle(
-                  color: primaryColor,
-                  fontSize: 16,
-                ),
+                style: TextStyle(color: primaryColor, fontSize: 16),
               ),
             ],
           ),
@@ -394,7 +390,8 @@ int get _favoritesCount => _userData['favoritesCount'] ?? 0;
                       radius: 50,
                       backgroundColor: primaryColor.withOpacity(0.1),
                       backgroundImage: _userData['profileImage'] != null
-                          ? NetworkImage(_userData['profileImage']!) as ImageProvider
+                          ? NetworkImage(_userData['profileImage']!)
+                                as ImageProvider
                           : const AssetImage("assets/post/art.jpg"),
                     ),
                     Positioned(
@@ -446,9 +443,12 @@ int get _favoritesCount => _userData['favoritesCount'] ?? 0;
 
                 // Bio
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   decoration: BoxDecoration(
-                    color: _userData['bio']?.isEmpty == true 
+                    color: _userData['bio']?.isEmpty == true
                         ? Colors.orange.withOpacity(0.1)
                         : Colors.grey.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -457,11 +457,11 @@ int get _favoritesCount => _userData['favoritesCount'] ?? 0;
                     _bio,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 16, 
-                      color: _userData['bio']?.isEmpty == true 
+                      fontSize: 16,
+                      color: _userData['bio']?.isEmpty == true
                           ? Colors.orange
                           : Colors.black87,
-                      fontStyle: _userData['bio']?.isEmpty == true 
+                      fontStyle: _userData['bio']?.isEmpty == true
                           ? FontStyle.italic
                           : FontStyle.normal,
                     ),
@@ -522,13 +522,13 @@ int get _favoritesCount => _userData['favoritesCount'] ?? 0;
               ],
             ),
             child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildStatItem("Amis", _friendsCount),
-                  _buildStatItem("Publications", _postsCount),
-                  _buildStatItem("Favoris", _favoritesCount),
-                ],
-              ),
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildStatItem("Amis", _friendsCount),
+                _buildStatItem("Publications", _postsCount),
+                _buildStatItem("Favoris", _favoritesCount),
+              ],
+            ),
           ),
 
           // Section navigation (Publications/À propos/Amis)
@@ -639,6 +639,7 @@ int get _favoritesCount => _userData['favoritesCount'] ?? 0;
           (post) => Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             child: PostCard(
+              postId: post["id"]!, // ← AJOUT OBLIGATOIRE du postId
               username: post["username"]!,
               content: post["content"]!,
               imageUrl: post["imageUrl"],
@@ -702,7 +703,7 @@ int get _favoritesCount => _userData['favoritesCount'] ?? 0;
             ),
           ),
           const SizedBox(height: 16),
-          
+
           // Indicateur si profil incomplet
           if (_aboutInfo.values.every((value) => value == 'Non renseigné'))
             Container(
@@ -721,16 +722,13 @@ int get _favoritesCount => _userData['favoritesCount'] ?? 0;
                   Expanded(
                     child: Text(
                       'Complétez votre profil pour personnaliser cette section',
-                      style: TextStyle(
-                        color: Colors.orange,
-                        fontSize: 14,
-                      ),
+                      style: TextStyle(color: Colors.orange, fontSize: 14),
                     ),
                   ),
                 ],
               ),
             ),
-          
+
           ..._aboutInfo.entries.map(
             (entry) => Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -743,7 +741,7 @@ int get _favoritesCount => _userData['favoritesCount'] ?? 0;
                       "${entry.key} :",
                       style: TextStyle(
                         fontWeight: FontWeight.w500,
-                        color: entry.value == 'Non renseigné' 
+                        color: entry.value == 'Non renseigné'
                             ? Colors.orange
                             : Colors.black87,
                       ),
@@ -753,10 +751,10 @@ int get _favoritesCount => _userData['favoritesCount'] ?? 0;
                     child: Text(
                       entry.value,
                       style: TextStyle(
-                        color: entry.value == 'Non renseigné' 
+                        color: entry.value == 'Non renseigné'
                             ? Colors.orange
                             : Colors.black54,
-                        fontStyle: entry.value == 'Non renseigné' 
+                        fontStyle: entry.value == 'Non renseigné'
                             ? FontStyle.italic
                             : FontStyle.normal,
                       ),
@@ -795,32 +793,36 @@ int get _favoritesCount => _userData['favoritesCount'] ?? 0;
               ? Wrap(
                   spacing: 12,
                   runSpacing: 12,
-                  children: _userFriends.map(
-                    (friend) => Column(
-                      children: [
-                        CircleAvatar(
-                          radius: 30,
-                          backgroundColor: primaryColor.withOpacity(0.1),
-                          child: Text(
-                            friend.isNotEmpty ? friend[0].toUpperCase() : '?',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: primaryColor,
+                  children: _userFriends
+                      .map(
+                        (friend) => Column(
+                          children: [
+                            CircleAvatar(
+                              radius: 30,
+                              backgroundColor: primaryColor.withOpacity(0.1),
+                              child: Text(
+                                friend.isNotEmpty
+                                    ? friend[0].toUpperCase()
+                                    : '?',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryColor,
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(height: 4),
+                            Text(
+                              friend,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          friend,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Colors.black54,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ).toList(),
+                      )
+                      .toList(),
                 )
               : Padding(
                   padding: const EdgeInsets.symmetric(vertical: 20),
@@ -834,9 +836,7 @@ int get _favoritesCount => _userData['favoritesCount'] ?? 0;
                       const SizedBox(height: 8),
                       Text(
                         "Aucun ami pour le moment",
-                        style: TextStyle(
-                          color: primaryColor.withOpacity(0.6),
-                        ),
+                        style: TextStyle(color: primaryColor.withOpacity(0.6)),
                       ),
                     ],
                   ),
@@ -876,7 +876,8 @@ int get _favoritesCount => _userData['favoritesCount'] ?? 0;
                     radius: 40,
                     backgroundColor: primaryColor.withOpacity(0.1),
                     backgroundImage: _userData['profileImage'] != null
-                        ? NetworkImage(_userData['profileImage']!) as ImageProvider
+                        ? NetworkImage(_userData['profileImage']!)
+                              as ImageProvider
                         : const AssetImage("assets/post/art.jpg"),
                   ),
                   Positioned(
@@ -912,10 +913,7 @@ int get _favoritesCount => _userData['favoritesCount'] ?? 0;
                 ),
                 child: Text(
                   'Tous les champs sont optionnels',
-                  style: TextStyle(
-                    color: Colors.blue,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.blue, fontSize: 12),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -1005,10 +1003,12 @@ int get _favoritesCount => _userData['favoritesCount'] ?? 0;
             child: const Text("Annuler"),
           ),
           ElevatedButton(
-            onPressed: _isSaving ? null : () async {
-              Navigator.pop(context);
-              await _updateProfile();
-            },
+            onPressed: _isSaving
+                ? null
+                : () async {
+                    Navigator.pop(context);
+                    await _updateProfile();
+                  },
             style: ElevatedButton.styleFrom(
               backgroundColor: primaryColor,
               foregroundColor: Colors.white,

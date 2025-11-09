@@ -114,7 +114,9 @@ class _GroupPageState extends State<GroupPage> {
         'timestamp': FieldValue.serverTimestamp(),
         'storageProvider': 'cloudinary',
       });
-      print("✅ Post sauvegardé pour l'utilisateur: $currentUserName ($currentUserId)");
+      print(
+        "✅ Post sauvegardé pour l'utilisateur: $currentUserName ($currentUserId)",
+      );
     } catch (e) {
       print("❌ Erreur Firestore: $e");
       throw Exception("Impossible de sauvegarder le post: $e");
@@ -140,7 +142,11 @@ class _GroupPageState extends State<GroupPage> {
     }
   }
 
-  Future<void> _deletePost(String postId, String? fileUrl, String? fileType) async {
+  Future<void> _deletePost(
+    String postId,
+    String? fileUrl,
+    String? fileType,
+  ) async {
     bool confirmDelete = await showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -164,11 +170,16 @@ class _GroupPageState extends State<GroupPage> {
         if (fileUrl != null && fileType == 'image') {
           final success = await CloudinaryService.deleteFileSimple(fileUrl);
           if (!success) {
-            print('⚠️ Impossible de supprimer le fichier de Cloudinary, continuation...');
+            print(
+              '⚠️ Impossible de supprimer le fichier de Cloudinary, continuation...',
+            );
           }
         }
 
-        await FirebaseFirestore.instance.collection('posts').doc(postId).delete();
+        await FirebaseFirestore.instance
+            .collection('posts')
+            .doc(postId)
+            .delete();
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -219,7 +230,11 @@ class _GroupPageState extends State<GroupPage> {
     );
   }
 
-  void _showPostOptions(BuildContext context, String postId, Map<String, dynamic> postData) {
+  void _showPostOptions(
+    BuildContext context,
+    String postId,
+    Map<String, dynamic> postData,
+  ) {
     final String postUserId = postData['userId'] ?? '';
 
     if (currentUserId != postUserId) {
@@ -249,7 +264,10 @@ class _GroupPageState extends State<GroupPage> {
             ),
             ListTile(
               leading: const Icon(Icons.delete, color: Colors.red),
-              title: const Text("Supprimer le post", style: TextStyle(color: Colors.red)),
+              title: const Text(
+                "Supprimer le post",
+                style: TextStyle(color: Colors.red),
+              ),
               onTap: () {
                 Navigator.pop(context);
                 _deletePost(postId, postData['fileUrl'], postData['fileType']);
@@ -444,7 +462,10 @@ class _GroupPageState extends State<GroupPage> {
                           "Aucune publication dans ce groupe",
                           style: TextStyle(fontSize: 18, color: Colors.grey),
                         ),
-                        Text("Soyez le premier à partager !", style: TextStyle(color: Colors.grey)),
+                        Text(
+                          "Soyez le premier à partager !",
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       ],
                     ),
                   );
@@ -461,15 +482,19 @@ class _GroupPageState extends State<GroupPage> {
                     final postId = doc.id;
 
                     return GestureDetector(
-                      onLongPress: () => _showPostOptions(context, postId, data),
+                      onLongPress: () =>
+                          _showPostOptions(context, postId, data),
                       onTap: () {
                         // 👇 Ajout pour les PDF
-                        if (data['fileType'] == 'pdf' && data['fileUrl'] != null) {
+                        if (data['fileType'] == 'pdf' &&
+                            data['fileUrl'] != null) {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (_) => Scaffold(
-                                appBar: AppBar(title: Text(data['fileName'] ?? 'PDF')),
+                                appBar: AppBar(
+                                  title: Text(data['fileName'] ?? 'PDF'),
+                                ),
                                 body: SfPdfViewer.network(data['fileUrl']),
                               ),
                             ),
@@ -477,8 +502,12 @@ class _GroupPageState extends State<GroupPage> {
                         }
                       },
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         child: PostCard(
+                          postId: doc.id,
                           username: data['userName'] ?? 'Utilisateur',
                           content: data['text'] ?? '',
                           imageUrl: data['fileUrl'],

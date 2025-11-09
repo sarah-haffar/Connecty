@@ -24,23 +24,45 @@ class _HomePageState extends State<HomePage> {
   final List<String> chats = ["Sarah", "Ahmed", "Feriel", "Baha"];
 
   // STRUCTURE CORRIGÉE - "Groupe" comme catégorie principale
-  Map<String, Map<String, Map<String, Map<String, List<String>>>>> createdGroups = {
-    "Groupe": {  // ← "Groupe" comme grande catégorie
+  Map<String, Map<String, Map<String, Map<String, List<String>>>>>
+  createdGroups = {
+    "Groupe": {
+      // ← "Groupe" comme grande catégorie
       "Robotique": {
         "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
-        "Lycée": {"1ère": <String>[], "2ème": <String>[], "3ème": <String>[], "Bac": <String>[]},
+        "Lycée": {
+          "1ère": <String>[],
+          "2ème": <String>[],
+          "3ème": <String>[],
+          "Bac": <String>[],
+        },
       },
       "Art": {
         "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
-        "Lycée": {"1ère": <String>[], "2ème": <String>[], "3ème": <String>[], "Bac": <String>[]},
+        "Lycée": {
+          "1ère": <String>[],
+          "2ème": <String>[],
+          "3ème": <String>[],
+          "Bac": <String>[],
+        },
       },
       "Sport": {
         "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
-        "Lycée": {"1ère": <String>[], "2ème": <String>[], "3ème": <String>[], "Bac": <String>[]},
+        "Lycée": {
+          "1ère": <String>[],
+          "2ème": <String>[],
+          "3ème": <String>[],
+          "Bac": <String>[],
+        },
       },
       "Clubs": {
         "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
-        "Lycée": {"1ère": <String>[], "2ème": <String>[], "3ème": <String>[], "Bac": <String>[]},
+        "Lycée": {
+          "1ère": <String>[],
+          "2ème": <String>[],
+          "3ème": <String>[],
+          "Bac": <String>[],
+        },
       },
     },
   };
@@ -108,26 +130,65 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadGroupsFromFirestore() async {
     try {
-      final snapshot = await FirebaseFirestore.instance.collection('groupe').get();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('groupe')
+          .get();
 
       // Structure vide de départ avec "Groupe" comme catégorie principale
-      final Map<String, Map<String, Map<String, Map<String, List<String>>>>> updatedGroups = {
+      final Map<String, Map<String, Map<String, Map<String, List<String>>>>>
+      updatedGroups = {
         "Groupe": {
           "Robotique": {
-            "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
-            "Lycée": {"1ère": <String>[], "2ème": <String>[], "3ème": <String>[], "Bac": <String>[]},
+            "Collège": {
+              "7ème": <String>[],
+              "8ème": <String>[],
+              "9ème": <String>[],
+            },
+            "Lycée": {
+              "1ère": <String>[],
+              "2ème": <String>[],
+              "3ème": <String>[],
+              "Bac": <String>[],
+            },
           },
           "Art": {
-            "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
-            "Lycée": {"1ère": <String>[], "2ème": <String>[], "3ème": <String>[], "Bac": <String>[]},
+            "Collège": {
+              "7ème": <String>[],
+              "8ème": <String>[],
+              "9ème": <String>[],
+            },
+            "Lycée": {
+              "1ère": <String>[],
+              "2ème": <String>[],
+              "3ème": <String>[],
+              "Bac": <String>[],
+            },
           },
           "Sport": {
-            "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
-            "Lycée": {"1ère": <String>[], "2ème": <String>[], "3ème": <String>[], "Bac": <String>[]},
+            "Collège": {
+              "7ème": <String>[],
+              "8ème": <String>[],
+              "9ème": <String>[],
+            },
+            "Lycée": {
+              "1ère": <String>[],
+              "2ème": <String>[],
+              "3ème": <String>[],
+              "Bac": <String>[],
+            },
           },
           "Clubs": {
-            "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
-            "Lycée": {"1ère": <String>[], "2ème": <String>[], "3ème": <String>[], "Bac": <String>[]},
+            "Collège": {
+              "7ème": <String>[],
+              "8ème": <String>[],
+              "9ème": <String>[],
+            },
+            "Lycée": {
+              "1ère": <String>[],
+              "2ème": <String>[],
+              "3ème": <String>[],
+              "Bac": <String>[],
+            },
           },
         },
       };
@@ -323,13 +384,19 @@ class _HomePageState extends State<HomePage> {
                                 ),
                               ),
                             ),
-                      ...displayedPosts.map(
-                        (post) => Padding(
+                      ...displayedPosts.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final post = entry.value;
+
+                        return Padding(
                           padding: const EdgeInsets.only(bottom: 20),
                           child: PostCard(
+                            postId:
+                                "local_post_$index", // ← ID temporaire pour les posts locaux
                             username: post["username"]!,
                             content: post["content"]!,
                             imageUrl: post["imageUrl"],
+                            fileType: "image", // ← Ajout du fileType
                             onFavoriteToggle: (postMap, isFav) {
                               setState(() {
                                 final indexPost = posts.indexWhere(
@@ -343,8 +410,8 @@ class _HomePageState extends State<HomePage> {
                               });
                             },
                           ),
-                        ),
-                      ),
+                        );
+                      }),
                     ],
                   ),
                 ),
@@ -381,7 +448,7 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const Divider(color: Colors.black26),
-            
+
             // Navigation dans "Groupe" → Sous-catégorie → Niveau → Classe
             ...createdGroups["Groupe"]!.keys.map(
               (sousCategorie) => ExpansionTile(
@@ -404,66 +471,83 @@ class _HomePageState extends State<HomePage> {
                         ),
                       ),
                       children: [
-                        ...createdGroups["Groupe"]![sousCategorie]![niveau]!.keys.map(
-                          (classe) => Column(
-                            children: [
-                              ListTile(
-                                leading: const Icon(Icons.add, color: Colors.green),
-                                title: Text(
-                                  "Créer un groupe ($classe)",
-                                  style: const TextStyle(color: Colors.black87),
-                                ),
-                                onTap: () {
-                                  _showCreateGroupDialog(context, sousCategorie, niveau, classe);
-                                },
-                              ),
-                              ...createdGroups["Groupe"]![sousCategorie]![niveau]![classe]!.map(
-                                (groupName) => ListTile(
-                                  leading: const Icon(Icons.group, color: Colors.black54),
-                                  title: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        groupName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black87,
-                                        ),
+                        ...createdGroups["Groupe"]![sousCategorie]![niveau]!
+                            .keys
+                            .map(
+                              (classe) => Column(
+                                children: [
+                                  ListTile(
+                                    leading: const Icon(
+                                      Icons.add,
+                                      color: Colors.green,
+                                    ),
+                                    title: Text(
+                                      "Créer un groupe ($classe)",
+                                      style: const TextStyle(
+                                        color: Colors.black87,
                                       ),
-                                      Text(
-                                        "Classe: $classe",
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black54,
-                                        ),
-                                      ),
-                                    ],
+                                    ),
+                                    onTap: () {
+                                      _showCreateGroupDialog(
+                                        context,
+                                        sousCategorie,
+                                        niveau,
+                                        classe,
+                                      );
+                                    },
                                   ),
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => GroupPage(
-                                          groupName: groupName,
-                                          categorie: sousCategorie,
-                                          niveau: niveau,
-                                          classe: classe,
+                                  ...createdGroups["Groupe"]![sousCategorie]![niveau]![classe]!
+                                      .map(
+                                        (groupName) => ListTile(
+                                          leading: const Icon(
+                                            Icons.group,
+                                            color: Colors.black54,
+                                          ),
+                                          title: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                groupName,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.black87,
+                                                ),
+                                              ),
+                                              Text(
+                                                "Classe: $classe",
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.black54,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => GroupPage(
+                                                  groupName: groupName,
+                                                  categorie: sousCategorie,
+                                                  niveau: niveau,
+                                                  classe: classe,
+                                                ),
+                                              ),
+                                            );
+                                          },
                                         ),
                                       ),
-                                    );
-                                  },
-                                ),
+                                ],
                               ),
-                            ],
-                          ),
-                        ),
+                            ),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
-            
+
             const Divider(color: Colors.black26),
             ListTile(
               leading: const Icon(Icons.settings, color: Colors.black87),
@@ -484,19 +568,25 @@ class _HomePageState extends State<HomePage> {
                   context: context,
                   builder: (context) => AlertDialog(
                     title: const Text("Confirmation"),
-                    content: const Text("Voulez-vous vraiment vous déconnecter ?"),
+                    content: const Text(
+                      "Voulez-vous vraiment vous déconnecter ?",
+                    ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
                         child: const Text("Annuler"),
                       ),
                       ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                        ),
                         onPressed: () {
                           Navigator.pop(context);
                           Navigator.pushReplacement(
                             context,
-                            MaterialPageRoute(builder: (context) => const LoginPage()),
+                            MaterialPageRoute(
+                              builder: (context) => const LoginPage(),
+                            ),
                           );
                         },
                         child: const Text("Se déconnecter"),
@@ -660,7 +750,8 @@ class _HomePageState extends State<HomePage> {
 
                   // Ajout local pour affichage immédiat
                   setState(() {
-                    createdGroups["Groupe"]![sousCategorie]![niveau]![classe]!.add(newGroup);
+                    createdGroups["Groupe"]![sousCategorie]![niveau]![classe]!
+                        .add(newGroup);
                   });
 
                   Navigator.of(context).pop();
@@ -670,9 +761,9 @@ class _HomePageState extends State<HomePage> {
                     ),
                   );
                 } catch (e) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Erreur : $e')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(SnackBar(content: Text('Erreur : $e')));
                 }
               }
             },

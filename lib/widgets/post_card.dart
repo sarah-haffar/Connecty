@@ -1,27 +1,33 @@
+import 'package:cloud_firestore/cloud_firestore.dart'; // ← IMPORT AJOUTÉ
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:connecty_app/widgets/pdf_view_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/interaction_service.dart';
 
 class PostCard extends StatefulWidget {
+  final String postId;
   final String username;
   final String content;
   final String? imageUrl;
   final String? profileImageUrl;
   final Color usernameColor;
   final Color contentColor;
-  final String? fileType; // ← AJOUT: 'image', 'pdf', 'video'
-  final void Function(Map<String, dynamic> postMap, bool isFavorite)? onFavoriteToggle;
+  final String? fileType;
+  final void Function(Map<String, dynamic> postMap, bool isFavorite)?
+  onFavoriteToggle;
 
   const PostCard({
     super.key,
+    required this.postId,
     required this.username,
     required this.content,
     this.imageUrl,
     this.profileImageUrl,
     this.usernameColor = Colors.black,
     this.contentColor = Colors.black,
-    this.fileType, // ← AJOUT
+    this.fileType,
     this.onFavoriteToggle,
   });
 
@@ -33,20 +39,103 @@ class _PostCardState extends State<PostCard> {
   bool showComments = false;
   bool showLikes = false;
   bool isFavorite = false;
+  bool isLiked = false;
 
-  final List<String> likedUsers = ["Sarah", "Ahmed", "Feriel"];
   final Color primaryColor = const Color(0xFF6A1B9A);
   final Color backgroundColor = const Color(0xFFEDE7F6);
   final TextEditingController _commentController = TextEditingController();
-  final List<Map<String, String>> comments = [];
 
-  bool get isNetworkImage => widget.imageUrl != null && widget.imageUrl!.startsWith('http');
+  // Variables pour le modal
+  final List<Map<String, String>> _modalComments = [];
+  final TextEditingController _modalCommentController = TextEditingController();
 
-  // ✅ Détection du type de fichier
-  bool get isPdfFile => widget.fileType == 'pdf' || (widget.imageUrl?.toLowerCase().contains('.pdf') ?? false);
-  bool get isVideoFile => widget.fileType == 'video' || (widget.imageUrl?.toLowerCase().contains('/video/') ?? false);
-  bool get isImageFile => widget.fileType == 'image' || (isNetworkImage && !isPdfFile && !isVideoFile);
+  bool get isNetworkImage =>
+      widget.imageUrl != null && widget.imageUrl!.startsWith('http');
+  bool get isPdfFile =>
+      widget.fileType == 'pdf' ||
+      (widget.imageUrl?.toLowerCase().contains('.pdf') ?? false);
+  bool get isVideoFile =>
+      widget.fileType == 'video' ||
+      (widget.imageUrl?.toLowerCase().contains('/video/') ?? false);
+  bool get isImageFile =>
+      widget.fileType == 'image' ||
+      (isNetworkImage && !isPdfFile && !isVideoFile);
 
+  @override
+  void initState() {
+    super.initState();
+    _checkUserInteractions();
+  }
+
+  void _checkUserInteractions() async {
+    final liked = await InteractionService.isLikedByUser(widget.postId);
+    final favorited = await InteractionService.isFavorite(widget.postId);
+    if (mounted) {
+      setState(() {
+        isLiked = liked;
+        isFavorite = favorited;
+      });
+    }
+  }
+
+  // ========== INTERACTIONS ==========
+  void _toggleLike() async {
+    await InteractionService.toggleLike(widget.postId);
+    if (mounted) {
+      setState(() {
+        isLiked = !isLiked;
+      });
+    }
+  }
+
+  void _toggleFavorite() async {
+    await InteractionService.toggleFavorite(widget.postId);
+    final newFavoriteState = !isFavorite;
+    if (mounted) {
+      setState(() {
+        isFavorite = newFavoriteState;
+      });
+    }
+
+    widget.onFavoriteToggle?.call({
+      "username": widget.username,
+      "content": widget.content,
+      "imageUrl": widget.imageUrl ?? "",
+      "postId": widget.postId,
+    }, newFavoriteState);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          newFavoriteState ? 'Ajouté aux favoris !' : 'Retiré des favoris !',
+        ),
+      ),
+    );
+  }
+
+  void _addComment() async {
+    if (_commentController.text.trim().isEmpty) return;
+
+    await InteractionService.addComment(widget.postId, _commentController.text);
+    _commentController.clear();
+  }
+
+  void _deleteComment(String commentId) async {
+    await InteractionService.deleteComment(widget.postId, commentId);
+  }
+
+  void _sharePost() async {
+    await InteractionService.addShare(widget.postId);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Post partagé !'),
+        backgroundColor: Colors.green,
+      ),
+    );
+  }
+
+  // ========== BUILD METHOD ==========
   @override
   Widget build(BuildContext context) {
     final bool isMobile = MediaQuery.of(context).size.width < 600;
@@ -111,7 +200,7 @@ class _PostCardState extends State<PostCard> {
             ),
           ),
 
-          // ✅ Fichier (Image, PDF ou Vidéo)
+          // Fichier (Image, PDF ou Vidéo)
           if (widget.imageUrl != null) ...[
             const SizedBox(height: 8),
             _buildFileAttachment(isMobile),
@@ -131,7 +220,7 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  // ✅ AFFICHAGE DES FICHIERS
+  // ========== MÉTHODES D'AFFICHAGE DES FICHIERS ==========
   Widget _buildFileAttachment(bool isMobile) {
     if (widget.imageUrl == null) return const SizedBox();
 
@@ -146,7 +235,6 @@ class _PostCardState extends State<PostCard> {
     }
   }
 
-  // ✅ CARTE PDF
   Widget _buildPdfCard(bool isMobile) {
     return GestureDetector(
       onTap: () => _openPdf(context),
@@ -166,7 +254,11 @@ class _PostCardState extends State<PostCard> {
                 color: Colors.red[50],
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.picture_as_pdf, color: Colors.red, size: 30),
+              child: const Icon(
+                Icons.picture_as_pdf,
+                color: Colors.red,
+                size: 30,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -175,18 +267,12 @@ class _PostCardState extends State<PostCard> {
                 children: [
                   const Text(
                     "Document PDF",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     "Cliquez pour ouvrir le document",
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
                   ),
                 ],
               ),
@@ -198,7 +284,6 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  // ✅ CARTE VIDÉO
   Widget _buildVideoCard(bool isMobile) {
     return GestureDetector(
       onTap: () => _openVideo(context),
@@ -227,18 +312,12 @@ class _PostCardState extends State<PostCard> {
                 children: [
                   const Text(
                     "Vidéo",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     "Cliquez pour regarder la vidéo",
-                    style: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey[600], fontSize: 14),
                   ),
                 ],
               ),
@@ -250,7 +329,6 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  // ✅ CARTE IMAGE
   Widget _buildImageCard(bool isMobile) {
     return GestureDetector(
       onTap: () => _showImageModal(context),
@@ -261,7 +339,6 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  // ✅ CARTE FICHIER GÉNÉRIQUE
   Widget _buildGenericFileCard(bool isMobile) {
     return GestureDetector(
       onTap: () => _openFile(context),
@@ -281,7 +358,11 @@ class _PostCardState extends State<PostCard> {
                 color: Colors.blue[50],
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.insert_drive_file, color: Colors.blue, size: 30),
+              child: const Icon(
+                Icons.insert_drive_file,
+                color: Colors.blue,
+                size: 30,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -299,10 +380,7 @@ class _PostCardState extends State<PostCard> {
                   const SizedBox(height: 4),
                   const Text(
                     "Cliquez pour ouvrir le fichier",
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
                   ),
                 ],
               ),
@@ -314,7 +392,7 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  // ✅ OUVRIR PDF - VERSION ULTRA-AMÉLIORÉE
+  // ========== MÉTHODES D'OUVERTURE DES FICHIERS ==========
   void _openPdf(BuildContext context) {
     if (widget.imageUrl == null || widget.imageUrl!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -326,20 +404,12 @@ class _PostCardState extends State<PostCard> {
       return;
     }
 
-    final String cleanUrl = widget.imageUrl!.trim();
-
-    print('📄 === OUVERTURE PDF ===');
-    print('URL: $cleanUrl');
-
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => PdfViewPage(pdfUrl: cleanUrl),
-      ),
+      MaterialPageRoute(builder: (_) => PdfViewPage(pdfUrl: widget.imageUrl!)),
     );
   }
 
-  // ✅ OUVRIR VIDÉO
   void _openVideo(BuildContext context) async {
     if (widget.imageUrl == null) return;
 
@@ -347,10 +417,7 @@ class _PostCardState extends State<PostCard> {
       final url = Uri.parse(widget.imageUrl!);
 
       if (await canLaunchUrl(url)) {
-        await launchUrl(
-          url,
-          mode: LaunchMode.externalApplication,
-        );
+        await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -360,7 +427,6 @@ class _PostCardState extends State<PostCard> {
         );
       }
     } catch (e) {
-      print('❌ Erreur ouverture vidéo: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Erreur: ${e.toString()}"),
@@ -370,7 +436,6 @@ class _PostCardState extends State<PostCard> {
     }
   }
 
-  // ✅ OUVRIR FICHIER GÉNÉRIQUE
   void _openFile(BuildContext context) async {
     if (widget.imageUrl == null) return;
 
@@ -378,10 +443,7 @@ class _PostCardState extends State<PostCard> {
       final url = Uri.parse(widget.imageUrl!);
 
       if (await canLaunchUrl(url)) {
-        await launchUrl(
-          url,
-          mode: LaunchMode.externalApplication,
-        );
+        await launchUrl(url, mode: LaunchMode.externalApplication);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -391,7 +453,6 @@ class _PostCardState extends State<PostCard> {
         );
       }
     } catch (e) {
-      print('❌ Erreur ouverture fichier: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text("Erreur: ${e.toString()}"),
@@ -401,7 +462,6 @@ class _PostCardState extends State<PostCard> {
     }
   }
 
-  // ✅ EXTRAIRE LE NOM DU FICHIER
   String _getFileName() {
     if (widget.imageUrl == null) return "Fichier";
 
@@ -417,7 +477,6 @@ class _PostCardState extends State<PostCard> {
     return "Document";
   }
 
-  // ✅ IMAGE RESPONSIVE
   Widget _buildImage(bool isMobile) {
     if (widget.imageUrl == null) return const SizedBox();
 
@@ -434,7 +493,8 @@ class _PostCardState extends State<PostCard> {
           child: Center(
             child: CircularProgressIndicator(
               value: loadingProgress.expectedTotalBytes != null
-                  ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
+                  ? loadingProgress.cumulativeBytesLoaded /
+                        loadingProgress.expectedTotalBytes!
                   : null,
             ),
           ),
@@ -447,9 +507,16 @@ class _PostCardState extends State<PostCard> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.broken_image, size: isMobile ? 30 : 50, color: Colors.grey),
+              Icon(
+                Icons.broken_image,
+                size: isMobile ? 30 : 50,
+                color: Colors.grey,
+              ),
               const SizedBox(height: 8),
-              Text("Image non chargée", style: TextStyle(fontSize: isMobile ? 12 : 14)),
+              Text(
+                "Image non chargée",
+                style: TextStyle(fontSize: isMobile ? 12 : 14),
+              ),
             ],
           ),
         );
@@ -457,188 +524,282 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  // ✅ BARRE D'ACTIONS RESPONSIVE
+  // ========== BARRE D'ACTIONS ==========
   Widget _buildActionBar(bool isMobile) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceAround,
       children: [
-        _buildActionIcon(Icons.thumb_up, showLikes, () {
-          setState(() => showLikes = !showLikes);
-        }, isMobile),
-        _buildActionIcon(Icons.comment, showComments, () {
-          setState(() => showComments = !showComments);
-        }, isMobile),
-        _buildActionIcon(Icons.share, false, () {}, isMobile),
-        _buildActionIcon(
-          isFavorite ? Icons.star : Icons.star_border,
-          isFavorite,
-              () {
-            setState(() {
-              isFavorite = !isFavorite;
-              widget.onFavoriteToggle?.call(
-                {
-                  "username": widget.username,
-                  "content": widget.content,
-                  "imageUrl": widget.imageUrl ?? "",
-                },
-                isFavorite,
-              );
-            });
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(isFavorite ? 'Ajouté aux favoris !' : 'Retiré des favoris !'),
-              ),
+        // LIKE
+        StreamBuilder<int>(
+          stream: InteractionService.getLikesCount(widget.postId),
+          builder: (context, snapshot) {
+            final likesCount = snapshot.data ?? 0;
+            return _buildActionIcon(
+              isLiked ? Icons.thumb_up : Icons.thumb_up_alt_outlined,
+              'J\'aime ($likesCount)',
+              _toggleLike,
+              isLiked ? primaryColor : Colors.grey[700]!,
+              isMobile,
             );
           },
+        ),
+
+        // COMMENTAIRES
+        StreamBuilder<QuerySnapshot>(
+          stream: InteractionService.getComments(widget.postId),
+          builder: (context, snapshot) {
+            final commentsCount = snapshot.data?.docs.length ?? 0;
+            return _buildActionIcon(
+              Icons.comment,
+              'Commenter ($commentsCount)',
+              () => setState(() => showComments = !showComments),
+              showComments ? primaryColor : Colors.grey[700]!,
+              isMobile,
+            );
+          },
+        ),
+
+        // PARTAGE
+        StreamBuilder<int>(
+          stream: InteractionService.getSharesCount(widget.postId),
+          builder: (context, snapshot) {
+            final sharesCount = snapshot.data ?? 0;
+            return _buildActionIcon(
+              Icons.share,
+              'Partager ($sharesCount)',
+              _sharePost,
+              Colors.grey[700]!,
+              isMobile,
+            );
+          },
+        ),
+
+        // FAVORI
+        _buildActionIcon(
+          isFavorite ? Icons.star : Icons.star_border,
+          'Favori',
+          _toggleFavorite,
+          isFavorite ? Colors.amber : Colors.grey[700]!,
           isMobile,
         ),
       ],
     );
   }
 
-  // ✅ SECTION COMMENTAIRES
-  Widget _buildCommentsSection(bool isMobile) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 8),
-        Text(
-          "Commentaires",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: isMobile ? 13 : 14,
-            color: Colors.black,
-          ),
+  Widget _buildActionIcon(
+    IconData icon,
+    String tooltip,
+    VoidCallback onTap,
+    Color color,
+    bool isMobile,
+  ) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Icon(icon, color: color, size: isMobile ? 20 : 22),
         ),
-        const SizedBox(height: 4),
-        ...comments.map(
-              (comment) => ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: CircleAvatar(
-              radius: isMobile ? 14 : 16,
-              backgroundColor: primaryColor,
-              child: Text(
-                comment['username']![0],
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: isMobile ? 12 : 14,
-                ),
-              ),
-            ),
-            title: Text(
-              comment['username']!,
+      ),
+    );
+  }
+
+  // ========== MÉTHODE POUR LES ICÔNES DU MODAL ==========
+  Widget _buildModalActionIcon(
+    IconData icon,
+    bool isActive,
+    VoidCallback onTap,
+    bool isMobile,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Icon(
+          icon,
+          color: isActive ? primaryColor : Colors.grey[700],
+          size: isMobile ? 20 : 22,
+        ),
+      ),
+    );
+  }
+
+  // ========== SECTION COMMENTAIRES ==========
+  Widget _buildCommentsSection(bool isMobile) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: InteractionService.getComments(widget.postId),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final comments = snapshot.data!.docs;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            Text(
+              "Commentaires (${comments.length})",
               style: TextStyle(
+                fontWeight: FontWeight.bold,
                 fontSize: isMobile ? 13 : 14,
                 color: Colors.black,
               ),
             ),
-            subtitle: Text(
-              comment['content']!,
-              style: TextStyle(
-                fontSize: isMobile ? 12 : 13,
-                color: Colors.black54,
-              ),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
+            const SizedBox(height: 4),
+
+            // LISTE DES COMMENTAIRES
+            ...comments.map((doc) {
+              final comment = doc.data() as Map<String, dynamic>;
+              final isCurrentUser =
+                  comment['userId'] == InteractionService.getCurrentUserId();
+
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  radius: isMobile ? 14 : 16,
+                  backgroundColor: primaryColor,
+                  child: Text(
+                    comment['userName'][0],
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: isMobile ? 12 : 14,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  comment['userName'],
+                  style: TextStyle(
+                    fontSize: isMobile ? 13 : 14,
+                    color: Colors.black,
+                  ),
+                ),
+                subtitle: Text(
+                  comment['content'],
+                  style: TextStyle(
+                    fontSize: isMobile ? 12 : 13,
+                    color: Colors.black54,
+                  ),
+                ),
+                trailing: isCurrentUser
+                    ? IconButton(
+                        icon: Icon(
+                          Icons.delete,
+                          size: isMobile ? 16 : 18,
+                          color: Colors.red,
+                        ),
+                        onPressed: () => _deleteComment(doc.id),
+                      )
+                    : null,
+              );
+            }),
+
+            // CHAMP DE SAISIE
+            const SizedBox(height: 8),
+            Row(
               children: [
-                IconButton(
-                  icon: Icon(Icons.edit, size: isMobile ? 16 : 18),
-                  onPressed: () => _editComment(comment),
+                Expanded(
+                  child: TextField(
+                    controller: _commentController,
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontSize: isMobile ? 13 : 14,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: "Ajouter un commentaire...",
+                      hintStyle: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: isMobile ? 13 : 14,
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: EdgeInsets.all(isMobile ? 12 : 16),
+                    ),
+                  ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.delete, size: isMobile ? 16 : 18),
-                  onPressed: () {
-                    setState(() {
-                      comments.remove(comment);
-                    });
-                  },
+                  icon: Icon(Icons.send, size: isMobile ? 20 : 22),
+                  color: primaryColor,
+                  onPressed: _addComment,
                 ),
               ],
             ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _commentController,
-                style: TextStyle(color: primaryColor, fontSize: isMobile ? 13 : 14),
-                decoration: InputDecoration(
-                  hintText: "Ajouter un commentaire...",
-                  hintStyle: TextStyle(color: Colors.grey[600], fontSize: isMobile ? 13 : 14),
-                  filled: true,
-                  fillColor: Colors.white,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
-                  contentPadding: EdgeInsets.all(isMobile ? 12 : 16),
-                ),
-              ),
-            ),
-            IconButton(
-              icon: Icon(Icons.send, size: isMobile ? 20 : 22),
-              color: primaryColor,
-              onPressed: () {
-                if (_commentController.text.isNotEmpty) {
-                  setState(() {
-                    comments.add({
-                      'username': 'Vous',
-                      'content': _commentController.text,
-                    });
-                    _commentController.clear();
-                  });
-                }
-              },
-            ),
           ],
-        ),
-      ],
+        );
+      },
     );
   }
 
-  // ✅ SECTION LIKES
+  // ========== SECTION LIKES ==========
   Widget _buildLikesSection(bool isMobile) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 8),
-        Text(
-          "J'aime",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: isMobile ? 13 : 14,
-            color: primaryColor,
-          ),
-        ),
-        const SizedBox(height: 4),
-        ...likedUsers.map(
-              (user) => ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: CircleAvatar(
-              radius: isMobile ? 14 : 16,
-              backgroundColor: primaryColor,
-              child: Text(
-                user[0],
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: isMobile ? 12 : 14,
-                ),
+    return StreamBuilder<QuerySnapshot>(
+      stream: InteractionService.getLikes(widget.postId),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return const SizedBox();
+        }
+
+        final likes = snapshot.data!.docs;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 8),
+            Text(
+              "J'aime (${likes.length})",
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: isMobile ? 13 : 14,
+                color: primaryColor,
               ),
             ),
-            title: Text(
-              user,
-              style: TextStyle(fontSize: isMobile ? 13 : 14),
-            ),
-          ),
-        ),
-      ],
+            const SizedBox(height: 4),
+            ...likes.take(10).map((doc) {
+              final like = doc.data() as Map<String, dynamic>;
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: CircleAvatar(
+                  radius: isMobile ? 14 : 16,
+                  backgroundColor: primaryColor,
+                  child: Text(
+                    like['userName'][0],
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: isMobile ? 12 : 14,
+                    ),
+                  ),
+                ),
+                title: Text(
+                  like['userName'],
+                  style: TextStyle(fontSize: isMobile ? 13 : 14),
+                ),
+              );
+            }),
+            if (likes.length > 10) ...[
+              const SizedBox(height: 4),
+              Text(
+                "Et ${likes.length - 10} autres...",
+                style: TextStyle(
+                  fontSize: isMobile ? 12 : 13,
+                  color: Colors.grey[600],
+                ),
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 
-  // ✅ MODAL POUR IMAGES
+  // ========== MODAL POUR IMAGES ==========
   void _showImageModal(BuildContext context) {
     if (widget.imageUrl == null || !isImageFile) return;
 
@@ -655,19 +816,19 @@ class _PostCardState extends State<PostCard> {
           ),
           child: Container(
             padding: EdgeInsets.all(isMobile ? 12 : 16),
-            child: isMobile ? _buildMobileModal(context) : _buildDesktopModal(context),
+            child: isMobile
+                ? _buildMobileModal(context)
+                : _buildDesktopModal(context),
           ),
         ),
       ),
     );
   }
 
-  // ✅ MODAL MOBILE
   Widget _buildMobileModal(BuildContext context) {
     return StatefulBuilder(
       builder: (context, setModalState) {
         final bool isMobile = true;
-        final TextEditingController _modalCommentController = TextEditingController();
         bool _showLikes = false;
         bool _showComments = true;
 
@@ -680,7 +841,13 @@ class _PostCardState extends State<PostCard> {
                   child: _buildImage(true),
                 ),
               const SizedBox(height: 12),
-              _buildModalContent(_modalCommentController, _showLikes, _showComments, setModalState, context, isMobile),
+              _buildModalContent(
+                _showLikes,
+                _showComments,
+                setModalState,
+                context,
+                isMobile,
+              ),
             ],
           ),
         );
@@ -688,12 +855,10 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  // ✅ MODAL DESKTOP
   Widget _buildDesktopModal(BuildContext context) {
     return StatefulBuilder(
       builder: (context, setModalState) {
         final bool isMobile = false;
-        final TextEditingController _modalCommentController = TextEditingController();
         bool _showLikes = false;
         bool _showComments = true;
 
@@ -707,7 +872,13 @@ class _PostCardState extends State<PostCard> {
               ),
             const SizedBox(width: 12),
             Expanded(
-              child: _buildModalContent(_modalCommentController, _showLikes, _showComments, setModalState, context, isMobile),
+              child: _buildModalContent(
+                _showLikes,
+                _showComments,
+                setModalState,
+                context,
+                isMobile,
+              ),
             ),
           ],
         );
@@ -715,15 +886,13 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  // ✅ CONTENU MODAL
   Widget _buildModalContent(
-      TextEditingController controller,
-      bool showLikes,
-      bool showComments,
-      Function(void Function()) setModalState,
-      BuildContext context,
-      bool isMobile,
-      ) {
+    bool showLikes,
+    bool showComments,
+    Function(void Function()) setModalState,
+    BuildContext context,
+    bool isMobile,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -754,27 +923,24 @@ class _PostCardState extends State<PostCard> {
           ],
         ),
         const SizedBox(height: 8),
-        Text(
-          widget.content,
-          style: TextStyle(fontSize: isMobile ? 13 : 14),
-        ),
+        Text(widget.content, style: TextStyle(fontSize: isMobile ? 13 : 14)),
         const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
-            _buildActionIcon(Icons.thumb_up, showLikes, () {
+            _buildModalActionIcon(Icons.thumb_up, showLikes, () {
               setModalState(() {
                 showLikes = !showLikes;
               });
             }, isMobile),
             const SizedBox(width: 20),
-            _buildActionIcon(Icons.comment, showComments, () {
+            _buildModalActionIcon(Icons.comment, showComments, () {
               setModalState(() {
                 showComments = !showComments;
               });
             }, isMobile),
             const SizedBox(width: 20),
-            _buildActionIcon(Icons.share, false, () {}, isMobile),
+            _buildModalActionIcon(Icons.share, false, _sharePost, isMobile),
           ],
         ),
         const SizedBox(height: 12),
@@ -791,8 +957,8 @@ class _PostCardState extends State<PostCard> {
                 ),
               ),
               const SizedBox(height: 4),
-              ...comments.map(
-                    (comment) => ListTile(
+              ..._modalComments.map(
+                (comment) => ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
                     radius: isMobile ? 14 : 16,
@@ -826,11 +992,17 @@ class _PostCardState extends State<PostCard> {
                 children: [
                   Expanded(
                     child: TextField(
-                      controller: controller,
-                      style: TextStyle(color: primaryColor, fontSize: isMobile ? 13 : 14),
+                      controller: _modalCommentController,
+                      style: TextStyle(
+                        color: primaryColor,
+                        fontSize: isMobile ? 13 : 14,
+                      ),
                       decoration: InputDecoration(
                         hintText: "Ajouter un commentaire...",
-                        hintStyle: TextStyle(color: Colors.grey[600], fontSize: isMobile ? 13 : 14),
+                        hintStyle: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: isMobile ? 13 : 14,
+                        ),
                         filled: true,
                         fillColor: Colors.white,
                         border: OutlineInputBorder(
@@ -845,13 +1017,13 @@ class _PostCardState extends State<PostCard> {
                     icon: Icon(Icons.send, size: isMobile ? 20 : 22),
                     color: primaryColor,
                     onPressed: () {
-                      if (controller.text.isNotEmpty) {
+                      if (_modalCommentController.text.isNotEmpty) {
                         setModalState(() {
-                          comments.add({
+                          _modalComments.add({
                             'username': 'Vous',
-                            'content': controller.text,
+                            'content': _modalCommentController.text,
                           });
-                          controller.clear();
+                          _modalCommentController.clear();
                         });
                       }
                     },
@@ -869,50 +1041,6 @@ class _PostCardState extends State<PostCard> {
           ),
         ),
       ],
-    );
-  }
-
-  // ✅ ICÔNE D'ACTION
-  Widget _buildActionIcon(IconData icon, bool isActive, VoidCallback onTap, bool isMobile) {
-    return InkWell(
-      onTap: onTap,
-      child: Icon(
-        icon,
-        color: isActive ? primaryColor : Colors.grey[700],
-        size: isMobile ? 20 : 22,
-      ),
-    );
-  }
-
-  // ✅ ÉDITER COMMENTAIRE
-  void _editComment(Map<String, String> comment) {
-    final controller = TextEditingController(text: comment['content']);
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text("Modifier le commentaire"),
-        content: TextField(
-          controller: controller,
-          decoration: const InputDecoration(
-            hintText: "Modifier...",
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("Annuler"),
-          ),
-          TextButton(
-            onPressed: () {
-              setState(() {
-                comment['content'] = controller.text;
-              });
-              Navigator.pop(context);
-            },
-            child: const Text("Modifier"),
-          ),
-        ],
-      ),
     );
   }
 }
