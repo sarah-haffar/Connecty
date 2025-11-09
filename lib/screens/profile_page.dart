@@ -720,6 +720,7 @@ class _ProfilePageState extends State<ProfilePage> {
               return Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: PostCard(
+                  postId: doc.id,
                   username: data['userName'] ?? _userData['name'] ?? 'Utilisateur',
                   content: data['text'] ?? '',
                   imageUrl: data['fileUrl'],
