@@ -26,9 +26,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // Données utilisateur
   Map<String, dynamic> _userData = {};
-  List<Map<String, dynamic>> _userPosts = [];
   List<String> _userFriends = [];
-  
   bool _isLoading = true;
   bool _isSaving = false;
 
@@ -46,7 +44,7 @@ class _ProfilePageState extends State<ProfilePage> {
     if (currentUser == null) {
       return const Stream<QuerySnapshot>.empty();
     }
-    
+
     return _firestore
         .collection('posts')
         .where('userId', isEqualTo: currentUser!.uid)
@@ -59,7 +57,6 @@ class _ProfilePageState extends State<ProfilePage> {
     super.initState();
     _loadUserData();
     _loadUserFriends();
-    
   }
 
   Future<void> _loadUserData() async {
@@ -261,7 +258,6 @@ class _ProfilePageState extends State<ProfilePage> {
       : 'Bienvenue sur mon profil ! 👋\nCliquez sur "Modifier profil" pour personnaliser.';
 
   int get _friendsCount => _userFriends.length;
-  int get _postsCount => _userPosts.length;
   int get _favoritesCount => _userData['favoritesCount'] ?? 0;
 
   Map<String, String> get _aboutInfo {
@@ -479,7 +475,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
 
                     const SizedBox(width: 12), // Espacement entre les boutons
-                    
                     // BOUTON NOUVEAU POST
                     ElevatedButton.icon(
                       onPressed: _isSaving ? null : _showCreatePostModal,
@@ -540,7 +535,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 StreamBuilder<QuerySnapshot>(
                   stream: _userPostsStream,
                   builder: (context, snapshot) {
-                    final postsCount = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                    final postsCount = snapshot.hasData
+                        ? snapshot.data!.docs.length
+                        : 0;
                     return _buildStatItem("Publications", postsCount);
                   },
                 ),
@@ -714,20 +711,27 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
 
-            // Liste des posts
+            // Liste des posts AVEC GESTES
             ...posts.map((doc) {
               final data = doc.data() as Map<String, dynamic>;
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: PostCard(
-                  postId: doc.id,
-                  username: data['userName'] ?? _userData['name'] ?? 'Utilisateur',
-                  content: data['text'] ?? '',
-                  imageUrl: data['fileUrl'],
-                  fileType: data['fileType'],
-                  onFavoriteToggle: (postMap, isFav) {
-                    // Logique des favoris si nécessaire
-                  },
+              return GestureDetector(
+                onLongPress: () => _showPostOptions(context, doc.id, data),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: PostCard(
+                    postId: doc.id,
+                    username:
+                        data['userName'] ?? _userData['name'] ?? 'Utilisateur',
+                    content: data['text'] ?? '',
+                    imageUrl: data['fileUrl'],
+                    fileType: data['fileType'],
+                    onFavoriteToggle: (postMap, isFav) {
+                      // Logique des favoris si nécessaire
+                    },
+                  ),
                 ),
               );
             }).toList(),
@@ -1086,8 +1090,16 @@ class _ProfilePageState extends State<ProfilePage> {
     final TextEditingController _postTextController = TextEditingController();
     String _selectedCategory = 'Général';
     final List<String> _categories = [
-      'Général', 'Programmation', 'Design', 'Études', 
-      'Loisirs', 'Voyages', 'Art', 'Musique', 'Sport', 'Autre'
+      'Général',
+      'Programmation',
+      'Design',
+      'Études',
+      'Loisirs',
+      'Voyages',
+      'Art',
+      'Musique',
+      'Sport',
+      'Autre',
     ];
 
     showDialog(
@@ -1124,7 +1136,10 @@ class _ProfilePageState extends State<ProfilePage> {
                     items: _categories.map((category) {
                       return DropdownMenuItem(
                         value: category,
-                        child: Text(category,style: const TextStyle(color: Colors.black)  ,),
+                        child: Text(
+                          category,
+                          style: const TextStyle(color: Colors.black),
+                        ),
                       );
                     }).toList(),
                     onChanged: (value) {
@@ -1138,7 +1153,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       border: OutlineInputBorder(),
                       contentPadding: EdgeInsets.symmetric(horizontal: 12),
                     ),
-                    style: const TextStyle(color: Colors.black)
+                    style: const TextStyle(color: Colors.black),
                   ),
                   const SizedBox(height: 16),
                   const Text(
@@ -1149,15 +1164,39 @@ class _ProfilePageState extends State<ProfilePage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
-                      _buildFileOption(Icons.photo, "Image", Colors.blue, () async {
-                        await _pickImageForProfilePost(_postTextController, _selectedCategory);
-                      }),
-                      _buildFileOption(Icons.picture_as_pdf, "PDF", Colors.red, () async {
-                        await _pickPdfForProfilePost(_postTextController, _selectedCategory);
-                      }),
-                      _buildFileOption(Icons.videocam, "Vidéo", Colors.purple, () async {
-                        await _pickVideoForProfilePost(_postTextController, _selectedCategory);
-                      }),
+                      _buildFileOption(
+                        Icons.photo,
+                        "Image",
+                        Colors.blue,
+                        () async {
+                          await _pickImageForProfilePost(
+                            _postTextController,
+                            _selectedCategory,
+                          );
+                        },
+                      ),
+                      _buildFileOption(
+                        Icons.picture_as_pdf,
+                        "PDF",
+                        Colors.red,
+                        () async {
+                          await _pickPdfForProfilePost(
+                            _postTextController,
+                            _selectedCategory,
+                          );
+                        },
+                      ),
+                      _buildFileOption(
+                        Icons.videocam,
+                        "Vidéo",
+                        Colors.purple,
+                        () async {
+                          await _pickVideoForProfilePost(
+                            _postTextController,
+                            _selectedCategory,
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ],
@@ -1169,23 +1208,25 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: const Text("Annuler"),
               ),
               ElevatedButton(
-                onPressed: _isSaving ? null : () async {
-                  final text = _postTextController.text.trim();
-                  if (text.isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("Veuillez écrire un message"),
-                        backgroundColor: Colors.orange,
-                      ),
-                    );
-                    return;
-                  }
-                  Navigator.pop(context);
-                  await _publishProfilePost(
-                    text: text,
-                    category: _selectedCategory,
-                  );
-                },
+                onPressed: _isSaving
+                    ? null
+                    : () async {
+                        final text = _postTextController.text.trim();
+                        if (text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Veuillez écrire un message"),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
+                        Navigator.pop(context);
+                        await _publishProfilePost(
+                          text: text,
+                          category: _selectedCategory,
+                        );
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
@@ -1199,7 +1240,12 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildFileOption(IconData icon, String label, Color color, VoidCallback onTap) {
+  Widget _buildFileOption(
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
     return Column(
       children: [
         CircleAvatar(
@@ -1242,7 +1288,8 @@ class _ProfilePageState extends State<ProfilePage> {
         'fileName': fileName,
         'categorie': category,
         'userId': currentUser!.uid,
-        'userName': _userData['name'] ?? currentUser!.displayName ?? 'Utilisateur',
+        'userName':
+            _userData['name'] ?? currentUser!.displayName ?? 'Utilisateur',
         'timestamp': FieldValue.serverTimestamp(),
         'storageProvider': fileUrl != null ? 'cloudinary' : null,
       });
@@ -1264,30 +1311,32 @@ class _ProfilePageState extends State<ProfilePage> {
     } catch (e) {
       print("❌ Erreur création post: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('❌ Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text('❌ Erreur: $e'), backgroundColor: Colors.red),
       );
     } finally {
       setState(() => _isSaving = false);
     }
   }
 
-  Future<void> _pickImageForProfilePost(TextEditingController textController, String category) async {
+  Future<void> _pickImageForProfilePost(
+    TextEditingController textController,
+    String category,
+  ) async {
     try {
       final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
       if (pickedFile != null) {
         Navigator.pop(context); // Fermer la modal d'abord
         setState(() => _isSaving = true);
-        
+
         print("📤 Début upload image vers Cloudinary...");
         final fileUrl = await CloudinaryService.uploadFile(pickedFile, 'image');
         print("📤 Résultat upload image: $fileUrl");
-        
+
         if (fileUrl != null) {
           await _publishProfilePost(
-            text: textController.text.isNotEmpty ? textController.text : "Partage une image",
+            text: textController.text.isNotEmpty
+                ? textController.text
+                : "Partage une image",
             category: category,
             fileUrl: fileUrl,
             fileType: 'image',
@@ -1305,7 +1354,10 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<void> _pickPdfForProfilePost(TextEditingController textController, String category) async {
+  Future<void> _pickPdfForProfilePost(
+    TextEditingController textController,
+    String category,
+  ) async {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
@@ -1314,17 +1366,19 @@ class _ProfilePageState extends State<ProfilePage> {
       if (result != null && result.files.single.path != null) {
         Navigator.pop(context); // Fermer la modal d'abord
         setState(() => _isSaving = true);
-        
+
         print("📤 Début upload PDF vers Cloudinary...");
         final fileUrl = await CloudinaryService.uploadFile(
-          XFile(result.files.single.path!), 
-          'pdf'
+          XFile(result.files.single.path!),
+          'pdf',
         );
         print("📤 Résultat upload PDF: $fileUrl");
-        
+
         if (fileUrl != null) {
           await _publishProfilePost(
-            text: textController.text.isNotEmpty ? textController.text : "Partage un document PDF",
+            text: textController.text.isNotEmpty
+                ? textController.text
+                : "Partage un document PDF",
             category: category,
             fileUrl: fileUrl,
             fileType: 'pdf',
@@ -1342,20 +1396,25 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<void> _pickVideoForProfilePost(TextEditingController textController, String category) async {
+  Future<void> _pickVideoForProfilePost(
+    TextEditingController textController,
+    String category,
+  ) async {
     try {
       final pickedFile = await _picker.pickVideo(source: ImageSource.gallery);
       if (pickedFile != null) {
         Navigator.pop(context); // Fermer la modal d'abord
         setState(() => _isSaving = true);
-        
+
         print("📤 Début upload vidéo vers Cloudinary...");
         final fileUrl = await CloudinaryService.uploadFile(pickedFile, 'video');
         print("📤 Résultat upload vidéo: $fileUrl");
-        
+
         if (fileUrl != null) {
           await _publishProfilePost(
-            text: textController.text.isNotEmpty ? textController.text : "Partage une vidéo",
+            text: textController.text.isNotEmpty
+                ? textController.text
+                : "Partage une vidéo",
             category: category,
             fileUrl: fileUrl,
             fileType: 'video',
@@ -1375,9 +1434,173 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  Future<void> _editPost(String postId, String newText) async {
+    try {
+      await _firestore.collection('posts').doc(postId).update({
+        'text': newText,
+        'editedAt': FieldValue.serverTimestamp(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("✅ Post modifié avec succès !"),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      _showError("Erreur lors de la modification: $e");
+    }
+  }
+
+  Future<void> _deletePost(
+    String postId,
+    String? fileUrl,
+    String? fileType,
+  ) async {
+    bool confirmDelete = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Confirmer la suppression"),
+        content: const Text("Voulez-vous vraiment supprimer ce post ?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Annuler"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Supprimer", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmDelete == true) {
+      try {
+        // Supprimer le fichier de Cloudinary si nécessaire
+        if (fileUrl != null && fileType == 'image') {
+          final success = await CloudinaryService.deleteFileSimple(fileUrl);
+          if (!success) {
+            print(
+              '⚠️ Impossible de supprimer le fichier de Cloudinary, continuation...',
+            );
+          }
+        }
+
+        // Supprimer le post de Firestore
+        await _firestore.collection('posts').doc(postId).delete();
+
+        // Mettre à jour le compteur de posts
+        await _firestore.collection('users').doc(currentUser!.uid).update({
+          'postsCount': FieldValue.increment(-1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("✅ Post supprimé avec succès !"),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } catch (e) {
+        _showError("Erreur lors de la suppression: $e");
+      }
+    }
+  }
+
+  void _showEditPostDialog(String postId, String currentText) {
+    final TextEditingController editController = TextEditingController(
+      text: currentText,
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Modifier le post"),
+        content: TextField(
+          controller: editController,
+          decoration: const InputDecoration(
+            hintText: "Modifier votre message...",
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 4,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Annuler"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (editController.text.trim().isNotEmpty) {
+                Navigator.pop(context);
+                await _editPost(postId, editController.text.trim());
+              }
+            },
+            child: const Text("Modifier"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPostOptions(
+    BuildContext context,
+    String postId,
+    Map<String, dynamic> postData,
+  ) {
+    final String postUserId = postData['userId'] ?? '';
+
+    // Vérifier que l'utilisateur peut modifier/supprimer seulement ses propres posts
+    if (currentUser!.uid != postUserId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Vous ne pouvez modifier que vos propres posts"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit, color: Colors.blue),
+              title: const Text("Modifier le post"),
+              onTap: () {
+                Navigator.pop(context);
+                _showEditPostDialog(postId, postData['text'] ?? '');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text(
+                "Supprimer le post",
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _deletePost(postId, postData['fileUrl'], postData['fileType']);
+              },
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Annuler"),
+            ),
+          ],
+        ),
       ),
     );
   }
