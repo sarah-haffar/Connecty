@@ -824,8 +824,8 @@ class _PostCardState extends State<PostCard> {
     return StatefulBuilder(
       builder: (context, setModalState) {
         final bool isMobile = true;
-        bool _showLikes = false;
-        bool _showComments = true;
+        bool showLikes = false;
+        bool showComments = true;
 
         return SingleChildScrollView(
           child: Column(
@@ -837,8 +837,8 @@ class _PostCardState extends State<PostCard> {
                 ),
               const SizedBox(height: 12),
               _buildModalContent(
-                _showLikes,
-                _showComments,
+                showLikes,
+                showComments,
                 setModalState,
                 context,
                 isMobile,
@@ -854,8 +854,8 @@ class _PostCardState extends State<PostCard> {
     return StatefulBuilder(
       builder: (context, setModalState) {
         final bool isMobile = false;
-        bool _showLikes = false;
-        bool _showComments = true;
+        bool showLikes = false;
+        bool showComments = true;
 
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -868,8 +868,8 @@ class _PostCardState extends State<PostCard> {
             const SizedBox(width: 12),
             Expanded(
               child: _buildModalContent(
-                _showLikes,
-                _showComments,
+                showLikes,
+                showComments,
                 setModalState,
                 context,
                 isMobile,

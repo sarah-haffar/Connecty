@@ -734,7 +734,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                 ),
               );
-            }).toList(),
+            }),
           ],
         );
       },
@@ -1087,9 +1087,9 @@ class _ProfilePageState extends State<ProfilePage> {
   // ========== MÉTHODES POUR LES POSTS DE PROFIL ==========
 
   void _showCreatePostModal() {
-    final TextEditingController _postTextController = TextEditingController();
-    String _selectedCategory = 'Général';
-    final List<String> _categories = [
+    final TextEditingController postTextController = TextEditingController();
+    String selectedCategory = 'Général';
+    final List<String> categories = [
       'Général',
       'Programmation',
       'Design',
@@ -1121,7 +1121,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   TextField(
-                    controller: _postTextController,
+                    controller: postTextController,
                     decoration: const InputDecoration(
                       hintText: "Partagez quelque chose avec votre réseau...",
                       border: OutlineInputBorder(),
@@ -1132,8 +1132,8 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: _selectedCategory,
-                    items: _categories.map((category) {
+                    initialValue: selectedCategory,
+                    items: categories.map((category) {
                       return DropdownMenuItem(
                         value: category,
                         child: Text(
@@ -1144,7 +1144,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     }).toList(),
                     onChanged: (value) {
                       setModalState(() {
-                        _selectedCategory = value!;
+                        selectedCategory = value!;
                       });
                     },
                     decoration: const InputDecoration(
@@ -1170,8 +1170,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         Colors.blue,
                         () async {
                           await _pickImageForProfilePost(
-                            _postTextController,
-                            _selectedCategory,
+                            postTextController,
+                            selectedCategory,
                           );
                         },
                       ),
@@ -1181,8 +1181,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         Colors.red,
                         () async {
                           await _pickPdfForProfilePost(
-                            _postTextController,
-                            _selectedCategory,
+                            postTextController,
+                            selectedCategory,
                           );
                         },
                       ),
@@ -1192,8 +1192,8 @@ class _ProfilePageState extends State<ProfilePage> {
                         Colors.purple,
                         () async {
                           await _pickVideoForProfilePost(
-                            _postTextController,
-                            _selectedCategory,
+                            postTextController,
+                            selectedCategory,
                           );
                         },
                       ),
@@ -1211,7 +1211,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 onPressed: _isSaving
                     ? null
                     : () async {
-                        final text = _postTextController.text.trim();
+                        final text = postTextController.text.trim();
                         if (text.isEmpty) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
@@ -1224,7 +1224,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         Navigator.pop(context);
                         await _publishProfilePost(
                           text: text,
-                          category: _selectedCategory,
+                          category: selectedCategory,
                         );
                       },
                 style: ElevatedButton.styleFrom(

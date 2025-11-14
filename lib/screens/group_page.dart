@@ -1,10 +1,8 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../services/cloudinary_service.dart';
 import '../widgets/post_card.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
