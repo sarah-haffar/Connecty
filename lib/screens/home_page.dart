@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import '../widgets/post_card.dart';
 import 'group_page.dart';
-import 'profile_page.dart';
+import 'profile/profile_page.dart';
 import 'login_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../services/friendship_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -154,9 +155,232 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showSearchOverlay() {
-    // Cette méthode devra être adaptée pour la recherche en temps réel
     _overlayEntry?.remove();
-    // Implementation temporaire - à adapter avec la vraie recherche
+
+    final renderBox =
+        _searchFieldKey.currentContext?.findRenderObject() as RenderBox?;
+    final size = renderBox?.size;
+    final offset = renderBox?.localToGlobal(Offset.zero);
+
+    if (size == null || offset == null) return;
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        left: offset.dx,
+        top: offset.dy + size.height,
+        width: size.width,
+        child: Material(
+          elevation: 4,
+          borderRadius: BorderRadius.circular(8),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 300),
+            child: _buildSearchResults(),
+          ),
+        ),
+      ),
+    );
+
+    Overlay.of(context)?.insert(_overlayEntry!);
+  }
+
+  Widget _buildSearchResults() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FriendshipService.searchUsers(searchQuery),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (snapshot.hasError) {
+          return Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('Erreur: ${snapshot.error}'),
+          );
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text('Aucun utilisateur trouvé'),
+          );
+        }
+
+        final users = snapshot.data!.docs;
+        final currentUserId = _auth.currentUser?.uid;
+
+        return ListView(
+          padding: EdgeInsets.zero,
+          shrinkWrap: true,
+          children: users.map((doc) {
+            final userData = doc.data() as Map<String, dynamic>;
+            final userId = doc.id;
+
+            // Ne pas afficher l'utilisateur connecté dans les résultats
+            if (userId == currentUserId) return const SizedBox.shrink();
+
+            return _buildUserSearchResult(userData, userId);
+          }).toList(),
+        );
+      },
+    );
+  }
+
+  Widget _buildUserSearchResult(Map<String, dynamic> userData, String userId) {
+    return FutureBuilder<Map<String, dynamic>>(
+      future: FriendshipService.checkFriendshipStatus(userId),
+      builder: (context, friendshipSnapshot) {
+        final friendshipStatus =
+            friendshipSnapshot.data ??
+            {
+              'isFriend': false,
+              'hasSentRequest': false,
+              'hasReceivedRequest': false,
+            };
+
+        return ListTile(
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 8,
+          ),
+          leading: CircleAvatar(
+            radius: 20,
+            backgroundColor: primaryColor.withOpacity(0.1),
+            backgroundImage: userData['profileImage'] != null
+                ? NetworkImage(userData['profileImage']!) as ImageProvider
+                : const AssetImage("assets/post/art.jpg"),
+            child: userData['profileImage'] == null
+                ? Text(
+                    userData['name']?[0] ?? '?',
+                    style: TextStyle(
+                      color: primaryColor,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  )
+                : null,
+          ),
+          title: Text(
+            userData['name'] ?? 'Utilisateur',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          subtitle: Text(
+            userData['email'] ?? '',
+            style: const TextStyle(fontSize: 12),
+          ),
+          trailing: _buildFriendshipActionButton(friendshipStatus, userId),
+          onTap: () {
+            _overlayEntry?.remove();
+            _overlayEntry = null;
+            _searchController.clear();
+            setState(() => searchQuery = "");
+
+            // Naviguer vers le profil de l'utilisateur
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ProfilePage(userId: userId),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildFriendshipActionButton(
+    Map<String, dynamic> friendshipStatus,
+    String userId,
+  ) {
+    if (friendshipStatus['isFriend'] == true) {
+      return IconButton(
+        icon: const Icon(Icons.check, color: Colors.green, size: 20),
+        onPressed: () {
+          // Déjà ami - pourrait ouvrir un menu pour retirer l'ami
+          _overlayEntry?.remove();
+          _overlayEntry = null;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProfilePage(userId: userId),
+            ),
+          );
+        },
+      );
+    } else if (friendshipStatus['hasSentRequest'] == true) {
+      return IconButton(
+        icon: const Icon(Icons.pending, color: Colors.orange, size: 20),
+        onPressed: () {
+          // Demande déjà envoyée
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Demande d\'ami déjà envoyée'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        },
+      );
+    } else if (friendshipStatus['hasReceivedRequest'] == true) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.person_add, color: Colors.blue, size: 20),
+            onPressed: () async {
+              try {
+                await FriendshipService.acceptFriendRequest(
+                  friendshipStatus['requestId'],
+                );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Demande d\'ami acceptée !'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+                _overlayEntry?.remove();
+                _overlayEntry = null;
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Erreur: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            },
+          ),
+        ],
+      );
+    } else {
+      return IconButton(
+        icon: Icon(
+          Icons.person_add_outlined,
+          color: primaryColor,
+          size: 20,
+        ),
+        onPressed: () async {
+          try {
+            await FriendshipService.sendFriendRequest(userId);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Demande d\'ami envoyée !'),
+                backgroundColor: Colors.green,
+              ),
+            );
+            _overlayEntry?.remove();
+            _overlayEntry = null;
+          } catch (e) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Erreur: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+      );
+    }
   }
 
   @override
@@ -234,27 +458,45 @@ class _HomePageState extends State<HomePage> {
                   onPressed: () {
                     showDialog(
                       context: context,
-                      builder: (_) => AlertDialog(
-                        title: const Text("Recherche"),
-                        content: SizedBox(
-                          width: double.maxFinite,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              TextField(
-                                controller: _searchController,
-                                decoration: const InputDecoration(
-                                  hintText: "Rechercher...",
-                                ),
-                                onChanged: (value) {
-                                  setState(() {
-                                    searchQuery = value.toLowerCase();
-                                  });
-                                },
+                      builder: (_) => StatefulBuilder(
+                        builder: (context, setDialogState) {
+                          return AlertDialog(
+                            title: const Text("Rechercher des utilisateurs"),
+                            content: SizedBox(
+                              width: double.maxFinite,
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  TextField(
+                                    controller: _searchController,
+                                    decoration: const InputDecoration(
+                                      hintText: "Rechercher un utilisateur...",
+                                      prefixIcon: Icon(Icons.search),
+                                    ),
+                                    onChanged: (value) {
+                                      setDialogState(() {
+                                        searchQuery = value.toLowerCase();
+                                      });
+                                    },
+                                  ),
+                                  if (searchQuery.isNotEmpty) ...[
+                                    const SizedBox(height: 16),
+                                    SizedBox(
+                                      height: 300,
+                                      child: _buildSearchResults(),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(context),
+                                child: const Text("Fermer"),
                               ),
                             ],
-                          ),
-                        ),
+                          );
+                        },
                       ),
                     );
                   },
