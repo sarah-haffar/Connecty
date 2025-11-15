@@ -118,6 +118,7 @@ class InteractionService {
 
     if (favoriteDoc.exists) {
       await favoriteRef.delete();
+      print('🗑️ Favori supprimé: $postId');
     } else {
       // Récupérer les données du post pour les sauvegarder dans les favoris
       final postDoc = await _firestore.collection(_posts).doc(postId).get();
@@ -126,6 +127,7 @@ class InteractionService {
           'postData': postDoc.data(),
           'addedAt': FieldValue.serverTimestamp(),
         });
+        print('⭐ Favori ajouté: $postId');
       }
     }
   }

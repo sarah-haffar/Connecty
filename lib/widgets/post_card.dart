@@ -16,6 +16,7 @@ class PostCard extends StatefulWidget {
   final Color usernameColor;
   final Color contentColor;
   final String? fileType;
+  final bool isInitiallyFavorite;
   final void Function(Map<String, dynamic> postMap, bool isFavorite)?
   onFavoriteToggle;
 
@@ -29,6 +30,7 @@ class PostCard extends StatefulWidget {
     this.usernameColor = Colors.black,
     this.contentColor = Colors.black,
     this.fileType,
+    this.isInitiallyFavorite = false,
     this.onFavoriteToggle,
   });
 
@@ -429,7 +431,6 @@ class _PostCardState extends State<PostCard> {
       ),
     );
   }
-
 
   void _openFile(BuildContext context) async {
     if (widget.imageUrl == null) return;

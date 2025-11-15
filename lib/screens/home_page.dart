@@ -124,7 +124,9 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadGroupsFromFirestore() async {
     try {
-      final snapshot = await FirebaseFirestore.instance.collection('groupe').get();
+      final snapshot = await FirebaseFirestore.instance
+          .collection('groupe')
+          .get();
 
       final Map<String, Map<String, Map<String, Map<String, List<String>>>>>
       updatedGroups = Map.from(createdGroups);
@@ -174,9 +176,9 @@ class _HomePageState extends State<HomePage> {
                 GestureDetector(
                   onTap: () {
                     Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const HomePage()));
+                      context,
+                      MaterialPageRoute(builder: (context) => const HomePage()),
+                    );
                   },
                   child: Image.asset(
                     "assets/Connecty_logo_3.PNG",
@@ -201,8 +203,10 @@ class _HomePageState extends State<HomePage> {
                           Icons.search,
                           color: Colors.black54,
                         ),
-                        contentPadding:
-                        const EdgeInsets.symmetric(vertical: 0, horizontal: 0),
+                        contentPadding: const EdgeInsets.symmetric(
+                          vertical: 0,
+                          horizontal: 0,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
@@ -239,8 +243,9 @@ class _HomePageState extends State<HomePage> {
                             children: [
                               TextField(
                                 controller: _searchController,
-                                decoration:
-                                const InputDecoration(hintText: "Rechercher..."),
+                                decoration: const InputDecoration(
+                                  hintText: "Rechercher...",
+                                ),
                                 onChanged: (value) {
                                   setState(() {
                                     searchQuery = value.toLowerCase();
@@ -366,6 +371,7 @@ class _HomePageState extends State<HomePage> {
                 content: data['text'] ?? '',
                 imageUrl: data['fileUrl'],
                 fileType: data['fileType'],
+                isInitiallyFavorite: false,
                 onFavoriteToggle: (postMap, isFav) {
                   // Gérer les favoris si nécessaire
                 },
@@ -396,7 +402,7 @@ class _HomePageState extends State<HomePage> {
             ),
             const Divider(color: Colors.black26),
             ...createdGroups["Groupe"]!.keys.map(
-                  (sousCategorie) => ExpansionTile(
+              (sousCategorie) => ExpansionTile(
                 leading: _getCategoryIcon(sousCategorie),
                 title: Text(
                   sousCategorie,
@@ -407,7 +413,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 children: [
                   ...createdGroups["Groupe"]![sousCategorie]!.keys.map(
-                        (niveau) => ExpansionTile(
+                    (niveau) => ExpansionTile(
                       title: Text(
                         niveau,
                         style: const TextStyle(
@@ -420,72 +426,72 @@ class _HomePageState extends State<HomePage> {
                             .keys
                             .map(
                               (classe) => Column(
-                            children: [
-                              ListTile(
-                                leading: const Icon(
-                                  Icons.add,
-                                  color: Colors.green,
-                                ),
-                                title: Text(
-                                  "Créer un groupe ($classe)",
-                                  style: const TextStyle(
-                                    color: Colors.black87,
+                                children: [
+                                  ListTile(
+                                    leading: const Icon(
+                                      Icons.add,
+                                      color: Colors.green,
+                                    ),
+                                    title: Text(
+                                      "Créer un groupe ($classe)",
+                                      style: const TextStyle(
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    onTap: () {
+                                      _showCreateGroupDialog(
+                                        context,
+                                        sousCategorie,
+                                        niveau,
+                                        classe,
+                                      );
+                                    },
                                   ),
-                                ),
-                                onTap: () {
-                                  _showCreateGroupDialog(
-                                    context,
-                                    sousCategorie,
-                                    niveau,
-                                    classe,
-                                  );
-                                },
+                                  ...createdGroups["Groupe"]![sousCategorie]![niveau]![classe]!
+                                      .map(
+                                        (groupName) => ListTile(
+                                          leading: const Icon(
+                                            Icons.group,
+                                            color: Colors.black54,
+                                          ),
+                                          title: Column(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                groupName,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.black87,
+                                                ),
+                                              ),
+                                              Text(
+                                                "Classe: $classe",
+                                                style: const TextStyle(
+                                                  fontSize: 12,
+                                                  color: Colors.black54,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          onTap: () {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (context) => GroupPage(
+                                                  groupName: groupName,
+                                                  categorie: sousCategorie,
+                                                  niveau: niveau,
+                                                  classe: classe,
+                                                ),
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                ],
                               ),
-                              ...createdGroups["Groupe"]![sousCategorie]![niveau]![classe]!
-                                  .map(
-                                    (groupName) => ListTile(
-                                  leading: const Icon(
-                                    Icons.group,
-                                    color: Colors.black54,
-                                  ),
-                                  title: Column(
-                                    crossAxisAlignment:
-                                    CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        groupName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                      Text(
-                                        "Classe: $classe",
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.black54,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  onTap: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => GroupPage(
-                                          groupName: groupName,
-                                          categorie: sousCategorie,
-                                          niveau: niveau,
-                                          classe: classe,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
+                            ),
                       ],
                     ),
                   ),
@@ -512,7 +518,9 @@ class _HomePageState extends State<HomePage> {
                   context: context,
                   builder: (context) => AlertDialog(
                     title: const Text("Confirmation"),
-                    content: const Text("Voulez-vous vraiment vous déconnecter ?"),
+                    content: const Text(
+                      "Voulez-vous vraiment vous déconnecter ?",
+                    ),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
@@ -626,7 +634,11 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showCreateGroupDialog(
-      BuildContext context, String categorie, String niveau, String classe) {
+    BuildContext context,
+    String categorie,
+    String niveau,
+    String classe,
+  ) {
     final TextEditingController groupNameController = TextEditingController();
 
     showDialog(
@@ -648,8 +660,9 @@ class _HomePageState extends State<HomePage> {
                 final groupName = groupNameController.text.trim();
                 if (groupName.isNotEmpty) {
                   setState(() {
-                    createdGroups["Groupe"]![categorie]![niveau]![classe]!
-                        .add(groupName);
+                    createdGroups["Groupe"]![categorie]![niveau]![classe]!.add(
+                      groupName,
+                    );
                   });
                   Navigator.pop(context);
                 }
@@ -663,18 +676,111 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showFavorites() {
-    // À ADAPTER : utiliser InteractionService.getUserFavorites()
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return;
+
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Posts favoris"),
-        content: const Text("Cette fonctionnalité sera bientôt disponible"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("OK"),
+      builder: (context) => Dialog(
+        insetPadding: const EdgeInsets.all(20),
+        child: Container(
+          width: double.maxFinite,
+          height: MediaQuery.of(context).size.height * 0.8,
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    "Mes Favoris",
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+              const Divider(),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: _firestore
+                      .collection('users')
+                      .doc(currentUser.uid)
+                      .collection('favorites')
+                      .orderBy('addedAt', descending: true)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Erreur: ${snapshot.error}'));
+                    }
+
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.star_border,
+                              size: 80,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 16),
+                            Text(
+                              "Aucun favori",
+                              style: TextStyle(
+                                fontSize: 18,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    final favorites = snapshot.data!.docs;
+
+                    return ListView.builder(
+                      itemCount: favorites.length,
+                      itemBuilder: (context, index) {
+                        final favoriteDoc = favorites[index];
+                        final postData =
+                            favoriteDoc['postData'] as Map<String, dynamic>;
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: PostCard(
+                            postId: favoriteDoc.id,
+                            username: postData['userName'] ?? 'Utilisateur',
+                            content: postData['text'] ?? '',
+                            imageUrl: postData['fileUrl'],
+                            fileType: postData['fileType'],
+                            isInitiallyFavorite: true,
+                            onFavoriteToggle: (postMap, isFav) async {
+                              if (!isFav) {
+                                await _firestore
+                                    .collection('users')
+                                    .doc(currentUser.uid)
+                                    .collection('favorites')
+                                    .doc(favoriteDoc.id)
+                                    .delete();
+                              }
+                            },
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -690,9 +796,7 @@ class _HomePageState extends State<HomePage> {
             shrinkWrap: true,
             itemCount: chats.length,
             itemBuilder: (context, index) {
-              return ListTile(
-                title: Text(chats[index]),
-              );
+              return ListTile(title: Text(chats[index]));
             },
           ),
         ),
