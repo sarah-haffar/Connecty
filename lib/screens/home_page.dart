@@ -255,8 +255,8 @@ class _HomePageState extends State<HomePage> {
                   },
                   child: Image.asset(
                     "assets/Connecty_logo_3.PNG",
-                    height: isMobile ? 45 : 80,
-                    width: isMobile ? 45 : 80,
+                    height: isMobile ? 90 : 80,
+                    width: isMobile ? 70 : 80,
                     fit: BoxFit.contain,
                   ),
                 ),
