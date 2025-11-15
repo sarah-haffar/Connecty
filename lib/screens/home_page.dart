@@ -4,6 +4,7 @@ import 'group_page.dart';
 import 'profile_page.dart';
 import 'login_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,6 +15,9 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final TextEditingController _searchController = TextEditingController();
+  final GlobalKey _searchFieldKey = GlobalKey();
+  OverlayEntry? _overlayEntry;
+
   String searchQuery = "";
   String selectedCategory = "";
   String? selectedAnswer;
@@ -23,11 +27,12 @@ class _HomePageState extends State<HomePage> {
   final List<String> users = ["Sarah", "Ahmed", "Feriel", "Baha"];
   final List<String> chats = ["Sarah", "Ahmed", "Feriel", "Baha"];
 
-  // STRUCTURE CORRIGÉE - "Groupe" comme catégorie principale
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+
   Map<String, Map<String, Map<String, Map<String, List<String>>>>>
   createdGroups = {
     "Groupe": {
-      // ← "Groupe" comme grande catégorie
       "Robotique": {
         "Collège": {"7ème": <String>[], "8ème": <String>[], "9ème": <String>[]},
         "Lycée": {
@@ -67,43 +72,8 @@ class _HomePageState extends State<HomePage> {
     },
   };
 
-  final List<Map<String, dynamic>> posts = [
-    {
-      "username": "Sarah",
-      "content": "On prépare une chorégraphie pour le spectacle de danse 💃🎶",
-      "category": "Clubs",
-      "imageUrl": "assets/post/dance.jpg",
-      "isFavorite": false,
-    },
-    {
-      "username": "Ahmed",
-      "content": "Super entraînement de basket aujourd'hui avec l'équipe 🏀💪",
-      "category": "Sport",
-      "imageUrl": "assets/post/basket.jpg",
-      "isFavorite": false,
-    },
-    {
-      "username": "Feriel",
-      "content": "Mini robot pour le concours de robotique 🤖✨",
-      "category": "Robotique",
-      "imageUrl": "assets/post/robo.jpg",
-      "isFavorite": false,
-    },
-    {
-      "username": "Baha",
-      "content": "Notre club de lecture a choisi 'Le Petit Prince' 📚🌟",
-      "category": "Clubs",
-      "imageUrl": "assets/post/livre.jpg",
-      "isFavorite": false,
-    },
-    {
-      "username": "Nora",
-      "content": "Nouveau tutoriel de peinture digitale 🎨🖌️",
-      "category": "Art",
-      "imageUrl": "assets/post/art.jpg",
-      "isFavorite": false,
-    },
-  ];
+  // SUPPRIMER les posts statiques fictifs
+  // final List<Map<String, dynamic>> posts = [ ... ]; // ← À SUPPRIMER
 
   final List<Map<String, dynamic>> quizQuestions = [
     {
@@ -128,70 +98,36 @@ class _HomePageState extends State<HomePage> {
   final Color primaryColor = const Color(0xFF6A1B9A);
   final Color sidebarColor = const Color(0xFFF0F0F0);
 
+  @override
+  void initState() {
+    super.initState();
+    _loadGroupsFromFirestore();
+  }
+
+  // ========== NOUVELLE MÉTHODE : RÉCUPÉRER TOUS LES POSTS ==========
+  Stream<QuerySnapshot> get _allPostsStream {
+    return _firestore
+        .collection('posts')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+  }
+
+  // ========== MÉTHODE TEMPORAIRE : RÉCUPÉRER LES POSTS FILTRÉS ==========
+  // Pour l'instant, on affiche tous les posts
+  // Plus tard, on filtrera par amis + groupes participants
+  Stream<QuerySnapshot> get _filteredPostsStream {
+    return _firestore
+        .collection('posts')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+  }
+
   Future<void> _loadGroupsFromFirestore() async {
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('groupe')
-          .get();
+      final snapshot = await FirebaseFirestore.instance.collection('groupe').get();
 
-      // Structure vide de départ avec "Groupe" comme catégorie principale
       final Map<String, Map<String, Map<String, Map<String, List<String>>>>>
-      updatedGroups = {
-        "Groupe": {
-          "Robotique": {
-            "Collège": {
-              "7ème": <String>[],
-              "8ème": <String>[],
-              "9ème": <String>[],
-            },
-            "Lycée": {
-              "1ère": <String>[],
-              "2ème": <String>[],
-              "3ème": <String>[],
-              "Bac": <String>[],
-            },
-          },
-          "Art": {
-            "Collège": {
-              "7ème": <String>[],
-              "8ème": <String>[],
-              "9ème": <String>[],
-            },
-            "Lycée": {
-              "1ère": <String>[],
-              "2ème": <String>[],
-              "3ème": <String>[],
-              "Bac": <String>[],
-            },
-          },
-          "Sport": {
-            "Collège": {
-              "7ème": <String>[],
-              "8ème": <String>[],
-              "9ème": <String>[],
-            },
-            "Lycée": {
-              "1ère": <String>[],
-              "2ème": <String>[],
-              "3ème": <String>[],
-              "Bac": <String>[],
-            },
-          },
-          "Clubs": {
-            "Collège": {
-              "7ème": <String>[],
-              "8ème": <String>[],
-              "9ème": <String>[],
-            },
-            "Lycée": {
-              "1ère": <String>[],
-              "2ème": <String>[],
-              "3ème": <String>[],
-              "Bac": <String>[],
-            },
-          },
-        },
-      };
+      updatedGroups = Map.from(createdGroups);
 
       for (var doc in snapshot.docs) {
         final data = doc.data();
@@ -200,7 +136,6 @@ class _HomePageState extends State<HomePage> {
         final classe = data['classe'];
         final nom = data['nom'];
 
-        // Vérifier que la structure existe avant d'ajouter
         if (updatedGroups["Groupe"]?[categorie] != null &&
             updatedGroups["Groupe"]![categorie]![niveau] != null &&
             updatedGroups["Groupe"]![categorie]![niveau]![classe] != null) {
@@ -216,24 +151,14 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _loadGroupsFromFirestore(); // 🔥 charge les groupes dès le démarrage
+  void _showSearchOverlay() {
+    // Cette méthode devra être adaptée pour la recherche en temps réel
+    _overlayEntry?.remove();
+    // Implementation temporaire - à adapter avec la vraie recherche
   }
 
   @override
   Widget build(BuildContext context) {
-    final displayedPosts = posts.where((p) {
-      final matchesCategory =
-          selectedCategory.isEmpty || p["category"] == selectedCategory;
-      final matchesSearch =
-          searchQuery.isEmpty ||
-          p["username"]!.toLowerCase().contains(searchQuery) ||
-          p["content"]!.toLowerCase().contains(searchQuery);
-      return matchesCategory && matchesSearch;
-    }).toList();
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 800;
@@ -249,9 +174,9 @@ class _HomePageState extends State<HomePage> {
                 GestureDetector(
                   onTap: () {
                     Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => const HomePage()),
-                    );
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const HomePage()));
                   },
                   child: Image.asset(
                     "assets/Connecty_logo_3.PNG",
@@ -262,10 +187,9 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(width: 10),
                 if (!isMobile)
-                  SizedBox(
-                    width: 250,
-                    height: 40,
+                  Expanded(
                     child: TextField(
+                      key: _searchFieldKey,
                       controller: _searchController,
                       style: const TextStyle(color: Colors.black),
                       decoration: InputDecoration(
@@ -277,10 +201,8 @@ class _HomePageState extends State<HomePage> {
                           Icons.search,
                           color: Colors.black54,
                         ),
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 0,
-                          horizontal: 0,
-                        ),
+                        contentPadding:
+                        const EdgeInsets.symmetric(vertical: 0, horizontal: 0),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
@@ -290,6 +212,12 @@ class _HomePageState extends State<HomePage> {
                         setState(() {
                           searchQuery = value.toLowerCase();
                         });
+                        if (searchQuery.isNotEmpty) {
+                          _showSearchOverlay();
+                        } else {
+                          _overlayEntry?.remove();
+                          _overlayEntry = null;
+                        }
                       },
                     ),
                   ),
@@ -304,16 +232,23 @@ class _HomePageState extends State<HomePage> {
                       context: context,
                       builder: (_) => AlertDialog(
                         title: const Text("Recherche"),
-                        content: TextField(
-                          controller: _searchController,
-                          decoration: const InputDecoration(
-                            hintText: "Rechercher...",
+                        content: SizedBox(
+                          width: double.maxFinite,
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              TextField(
+                                controller: _searchController,
+                                decoration:
+                                const InputDecoration(hintText: "Rechercher..."),
+                                onChanged: (value) {
+                                  setState(() {
+                                    searchQuery = value.toLowerCase();
+                                  });
+                                },
+                              ),
+                            ],
                           ),
-                          onChanged: (value) {
-                            setState(() {
-                              searchQuery = value.toLowerCase();
-                            });
-                          },
                         ),
                       ),
                     );
@@ -364,56 +299,7 @@ class _HomePageState extends State<HomePage> {
                 flex: 3,
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: ListView(
-                    children: [
-                      if (searchQuery.isNotEmpty)
-                        ...users
-                            .where((u) => u.toLowerCase().contains(searchQuery))
-                            .map(
-                              (u) => ListTile(
-                                leading: CircleAvatar(
-                                  backgroundColor: sidebarColor,
-                                  child: Text(
-                                    u[0],
-                                    style: const TextStyle(color: Colors.black),
-                                  ),
-                                ),
-                                title: Text(
-                                  u,
-                                  style: const TextStyle(color: Colors.black),
-                                ),
-                              ),
-                            ),
-                      ...displayedPosts.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final post = entry.value;
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 20),
-                          child: PostCard(
-                            postId:
-                                "local_post_$index", // ← ID temporaire pour les posts locaux
-                            username: post["username"]!,
-                            content: post["content"]!,
-                            imageUrl: post["imageUrl"],
-                            fileType: "image", // ← Ajout du fileType
-                            onFavoriteToggle: (postMap, isFav) {
-                              setState(() {
-                                final indexPost = posts.indexWhere(
-                                  (p) =>
-                                      p["username"] == postMap["username"] &&
-                                      p["content"] == postMap["content"],
-                                );
-                                if (indexPost != -1) {
-                                  posts[indexPost]["isFavorite"] = isFav;
-                                }
-                              });
-                            },
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
+                  child: _buildPostsList(), // ← MODIFICATION ICI
                 ),
               ),
               if (!isMobile)
@@ -425,6 +311,67 @@ class _HomePageState extends State<HomePage> {
                 ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  // ========== NOUVELLE MÉTHODE : CONSTRUIRE LA LISTE DES POSTS ==========
+  Widget _buildPostsList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _filteredPostsStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(child: Text('Erreur: ${snapshot.error}'));
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.feed, size: 80, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  "Aucune publication",
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                ),
+                Text(
+                  "Les publications de vos amis et groupes apparaîtront ici",
+                  style: TextStyle(color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
+        final posts = snapshot.data!.docs;
+
+        return ListView.builder(
+          itemCount: posts.length,
+          itemBuilder: (context, index) {
+            final doc = posts[index];
+            final data = doc.data() as Map<String, dynamic>;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: PostCard(
+                postId: doc.id,
+                username: data['userName'] ?? 'Utilisateur',
+                content: data['text'] ?? '',
+                imageUrl: data['fileUrl'],
+                fileType: data['fileType'],
+                onFavoriteToggle: (postMap, isFav) {
+                  // Gérer les favoris si nécessaire
+                },
+              ),
+            );
+          },
         );
       },
     );
@@ -448,10 +395,8 @@ class _HomePageState extends State<HomePage> {
               ),
             ),
             const Divider(color: Colors.black26),
-
-            // Navigation dans "Groupe" → Sous-catégorie → Niveau → Classe
             ...createdGroups["Groupe"]!.keys.map(
-              (sousCategorie) => ExpansionTile(
+                  (sousCategorie) => ExpansionTile(
                 leading: _getCategoryIcon(sousCategorie),
                 title: Text(
                   sousCategorie,
@@ -462,7 +407,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 children: [
                   ...createdGroups["Groupe"]![sousCategorie]!.keys.map(
-                    (niveau) => ExpansionTile(
+                        (niveau) => ExpansionTile(
                       title: Text(
                         niveau,
                         style: const TextStyle(
@@ -475,79 +420,78 @@ class _HomePageState extends State<HomePage> {
                             .keys
                             .map(
                               (classe) => Column(
-                                children: [
-                                  ListTile(
-                                    leading: const Icon(
-                                      Icons.add,
-                                      color: Colors.green,
-                                    ),
-                                    title: Text(
-                                      "Créer un groupe ($classe)",
-                                      style: const TextStyle(
-                                        color: Colors.black87,
-                                      ),
-                                    ),
-                                    onTap: () {
-                                      _showCreateGroupDialog(
-                                        context,
-                                        sousCategorie,
-                                        niveau,
-                                        classe,
-                                      );
-                                    },
+                            children: [
+                              ListTile(
+                                leading: const Icon(
+                                  Icons.add,
+                                  color: Colors.green,
+                                ),
+                                title: Text(
+                                  "Créer un groupe ($classe)",
+                                  style: const TextStyle(
+                                    color: Colors.black87,
                                   ),
-                                  ...createdGroups["Groupe"]![sousCategorie]![niveau]![classe]!
-                                      .map(
-                                        (groupName) => ListTile(
-                                          leading: const Icon(
-                                            Icons.group,
-                                            color: Colors.black54,
-                                          ),
-                                          title: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                groupName,
-                                                style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  color: Colors.black87,
-                                                ),
-                                              ),
-                                              Text(
-                                                "Classe: $classe",
-                                                style: const TextStyle(
-                                                  fontSize: 12,
-                                                  color: Colors.black54,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                          onTap: () {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (context) => GroupPage(
-                                                  groupName: groupName,
-                                                  categorie: sousCategorie,
-                                                  niveau: niveau,
-                                                  classe: classe,
-                                                ),
-                                              ),
-                                            );
-                                          },
+                                ),
+                                onTap: () {
+                                  _showCreateGroupDialog(
+                                    context,
+                                    sousCategorie,
+                                    niveau,
+                                    classe,
+                                  );
+                                },
+                              ),
+                              ...createdGroups["Groupe"]![sousCategorie]![niveau]![classe]!
+                                  .map(
+                                    (groupName) => ListTile(
+                                  leading: const Icon(
+                                    Icons.group,
+                                    color: Colors.black54,
+                                  ),
+                                  title: Column(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        groupName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87,
                                         ),
                                       ),
-                                ],
+                                      Text(
+                                        "Classe: $classe",
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black54,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => GroupPage(
+                                          groupName: groupName,
+                                          categorie: sousCategorie,
+                                          niveau: niveau,
+                                          classe: classe,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
                               ),
-                            ),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
                   ),
                 ],
               ),
             ),
-
             const Divider(color: Colors.black26),
             ListTile(
               leading: const Icon(Icons.settings, color: Colors.black87),
@@ -568,9 +512,7 @@ class _HomePageState extends State<HomePage> {
                   context: context,
                   builder: (context) => AlertDialog(
                     title: const Text("Confirmation"),
-                    content: const Text(
-                      "Voulez-vous vraiment vous déconnecter ?",
-                    ),
+                    content: const Text("Voulez-vous vraiment vous déconnecter ?"),
                     actions: [
                       TextButton(
                         onPressed: () => Navigator.pop(context),
@@ -641,59 +583,29 @@ class _HomePageState extends State<HomePage> {
                   if (value == quiz["answer"]) {
                     feedbackMessage = "✅ Bonne réponse !";
                   } else {
-                    feedbackMessage =
-                        "❌ Mauvaise réponse. La bonne réponse est : ${quiz["answer"]}";
+                    feedbackMessage = "❌ Mauvaise réponse.";
                   }
+                  Future.delayed(const Duration(seconds: 1), () {
+                    setState(() {
+                      currentQuizIndex =
+                          (currentQuizIndex + 1) % quizQuestions.length;
+                      selectedAnswer = null;
+                      feedbackMessage = "";
+                    });
+                  });
                 });
               },
             );
           }).toList(),
-          if (feedbackMessage.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              feedbackMessage,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: feedbackMessage.startsWith("✅")
-                    ? Colors.green
-                    : Colors.red,
-              ),
+          const SizedBox(height: 4),
+          Text(
+            feedbackMessage,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
             ),
-          ],
-          const SizedBox(height: 8),
-          ElevatedButton(
-            onPressed: () {
-              setState(() {
-                currentQuizIndex =
-                    (currentQuizIndex + 1) % quizQuestions.length;
-                selectedAnswer = null;
-                feedbackMessage = "";
-              });
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: primaryColor),
-            child: const Text("Question suivante"),
           ),
         ],
-      ),
-    );
-  }
-
-  void _showFavorites() {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => SizedBox(
-        height: 400,
-        child: const Center(child: Text("Aucun favori pour l'instant")),
-      ),
-    );
-  }
-
-  void _showChats() {
-    showModalBottomSheet(
-      context: context,
-      builder: (_) => SizedBox(
-        height: 400,
-        child: const Center(child: Text("Chats à venir...")),
       ),
     );
   }
@@ -701,75 +613,89 @@ class _HomePageState extends State<HomePage> {
   Icon _getCategoryIcon(String category) {
     switch (category) {
       case "Art":
-        return const Icon(Icons.palette, color: Colors.purpleAccent);
+        return const Icon(Icons.palette, color: Colors.black87);
       case "Sport":
-        return const Icon(Icons.sports_soccer, color: Colors.orangeAccent);
+        return const Icon(Icons.sports, color: Colors.black87);
       case "Robotique":
-        return const Icon(Icons.smart_toy, color: Colors.blueAccent);
+        return const Icon(Icons.smart_toy, color: Colors.black87);
       case "Clubs":
-        return const Icon(Icons.menu_book, color: Colors.tealAccent);
+        return const Icon(Icons.groups, color: Colors.black87);
       default:
-        return const Icon(Icons.category, color: Colors.black87);
+        return const Icon(Icons.group, color: Colors.black87);
     }
   }
 
   void _showCreateGroupDialog(
-    BuildContext context,
-    String sousCategorie,
-    String niveau,
-    String classe,
-  ) {
-    final TextEditingController groupController = TextEditingController();
+      BuildContext context, String categorie, String niveau, String classe) {
+    final TextEditingController groupNameController = TextEditingController();
 
     showDialog(
       context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Créer un nouveau groupe"),
+          content: TextField(
+            controller: groupNameController,
+            decoration: const InputDecoration(labelText: "Nom du groupe"),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Annuler"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final groupName = groupNameController.text.trim();
+                if (groupName.isNotEmpty) {
+                  setState(() {
+                    createdGroups["Groupe"]![categorie]![niveau]![classe]!
+                        .add(groupName);
+                  });
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text("Créer"),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showFavorites() {
+    // À ADAPTER : utiliser InteractionService.getUserFavorites()
+    showDialog(
+      context: context,
       builder: (context) => AlertDialog(
-        title: Text("Créer un groupe ($sousCategorie > $niveau > $classe)"),
-        content: TextField(
-          controller: groupController,
-          decoration: const InputDecoration(hintText: "Nom du groupe"),
-        ),
+        title: const Text("Posts favoris"),
+        content: const Text("Cette fonctionnalité sera bientôt disponible"),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text("Annuler"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              String newGroup = groupController.text.trim();
-              if (newGroup.isNotEmpty) {
-                try {
-                  // Enregistrement dans Firestore
-                  await FirebaseFirestore.instance.collection('groupe').add({
-                    'nom': newGroup,
-                    'categorie': sousCategorie,
-                    'niveau': niveau,
-                    'classe': classe,
-                    'date_creation': Timestamp.now(),
-                  });
-
-                  // Ajout local pour affichage immédiat
-                  setState(() {
-                    createdGroups["Groupe"]![sousCategorie]![niveau]![classe]!
-                        .add(newGroup);
-                  });
-
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Groupe ajouté avec succès ✅'),
-                    ),
-                  );
-                } catch (e) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Erreur : $e')));
-                }
-              }
-            },
-            child: const Text("Créer"),
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
           ),
         ],
+      ),
+    );
+  }
+
+  void _showChats() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Chats"),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: chats.length,
+            itemBuilder: (context, index) {
+              return ListTile(
+                title: Text(chats[index]),
+              );
+            },
+          ),
+        ),
       ),
     );
   }

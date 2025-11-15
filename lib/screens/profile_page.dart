@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import '../widgets/post_card.dart';
 import 'home_page.dart';
 import '../services/cloudinary_service.dart';
@@ -25,7 +26,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   // Données utilisateur
   Map<String, dynamic> _userData = {};
-  List<Map<String, dynamic>> _userPosts = [];
   List<String> _userFriends = [];
   bool _isLoading = true;
   bool _isSaving = false;
@@ -39,11 +39,23 @@ class _ProfilePageState extends State<ProfilePage> {
 
   int _selectedSection = 0;
 
+  // Stream pour les posts en temps réel
+  Stream<QuerySnapshot> get _userPostsStream {
+    if (currentUser == null) {
+      return const Stream<QuerySnapshot>.empty();
+    }
+
+    return _firestore
+        .collection('posts')
+        .where('userId', isEqualTo: currentUser!.uid)
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+  }
+
   @override
   void initState() {
     super.initState();
     _loadUserData();
-    _loadUserPosts();
     _loadUserFriends();
   }
 
@@ -77,7 +89,6 @@ class _ProfilePageState extends State<ProfilePage> {
       final newUserData = {
         'uid': currentUser!.uid,
         'email': currentUser!.email,
-        // UTILISEZ 'name' POUR ÊTRE COHÉRENT AVEC VOTRE BASE
         'name':
             currentUser!.displayName ?? currentUser!.email!.split('@').first,
         'pseudo': '@${currentUser!.email!.split('@').first}',
@@ -117,37 +128,6 @@ class _ProfilePageState extends State<ProfilePage> {
     _schoolController.text = _userData['school'] ?? '';
     _locationController.text = _userData['location'] ?? '';
     _interestsController.text = _userData['interests'] ?? '';
-  }
-
-  Future<void> _loadUserPosts() async {
-    try {
-      if (currentUser == null) return;
-
-      final postsSnapshot = await _firestore
-          .collection('posts')
-          .where('userId', isEqualTo: currentUser!.uid)
-          .orderBy('timestamp', descending: true)
-          .get();
-
-      setState(() {
-        _userPosts = postsSnapshot.docs.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return {
-            'id': doc.id,
-            // UTILISEZ 'name' ICI AUSSI
-            'username': data['userName'] ?? _userData['name'] ?? 'Utilisateur',
-            'content': data['text'] ?? '',
-            'category': data['categorie'] ?? 'Général',
-            'imageUrl': data['fileUrl'],
-            'fileType': data['fileType'],
-            'isFavorite': false,
-            'timestamp': data['timestamp'],
-          };
-        }).toList();
-      });
-    } catch (e) {
-      print("❌ Erreur chargement posts: $e");
-    }
   }
 
   Future<void> _loadUserFriends() async {
@@ -278,7 +258,6 @@ class _ProfilePageState extends State<ProfilePage> {
       : 'Bienvenue sur mon profil ! 👋\nCliquez sur "Modifier profil" pour personnaliser.';
 
   int get _friendsCount => _userFriends.length;
-  int get _postsCount => _userPosts.length;
   int get _favoritesCount => _userData['favoritesCount'] ?? 0;
 
   Map<String, String> get _aboutInfo {
@@ -296,16 +275,6 @@ class _ProfilePageState extends State<ProfilePage> {
           ? _userData['interests']
           : 'Non renseigné',
     };
-  }
-
-  @override
-  void dispose() {
-    _bioController.dispose();
-    _ageController.dispose();
-    _schoolController.dispose();
-    _locationController.dispose();
-    _interestsController.dispose();
-    super.dispose();
   }
 
   @override
@@ -470,37 +439,75 @@ class _ProfilePageState extends State<ProfilePage> {
 
                 const SizedBox(height: 20),
 
-                // Bouton d'action - Modifier profil
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _editProfile,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                // BOUTONS D'ACTION - Modifier profil + Nouveau post
+                Row(
+                  children: [
+                    // BOUTON MODIFIER PROFIL
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: _isSaving ? null : _editProfile,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        icon: const Icon(Icons.edit, size: 20),
+                        label: _isSaving
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Text(
+                                "Modifier profil",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                       ),
                     ),
-                    icon: const Icon(Icons.edit, size: 20),
-                    label: _isSaving
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+
+                    const SizedBox(width: 12), // Espacement entre les boutons
+                    // BOUTON NOUVEAU POST
+                    ElevatedButton.icon(
+                      onPressed: _isSaving ? null : _showCreatePostModal,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 14,
+                          horizontal: 16,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      icon: const Icon(Icons.add, size: 20),
+                      label: _isSaving
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
+                            )
+                          : const Text(
+                              "Nouveau post",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
-                          )
-                        : const Text(
-                            "Modifier profil",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                  ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -525,7 +532,15 @@ class _ProfilePageState extends State<ProfilePage> {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildStatItem("Amis", _friendsCount),
-                _buildStatItem("Publications", _postsCount),
+                StreamBuilder<QuerySnapshot>(
+                  stream: _userPostsStream,
+                  builder: (context, snapshot) {
+                    final postsCount = snapshot.hasData
+                        ? snapshot.data!.docs.length
+                        : 0;
+                    return _buildStatItem("Publications", postsCount);
+                  },
+                ),
                 _buildStatItem("Favoris", _favoritesCount),
               ],
             ),
@@ -633,25 +648,19 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildPostsSection() {
-    return Column(
-      children: [
-        ..._userPosts.map(
-          (post) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: PostCard(
-              postId: post["id"]!, // ← AJOUT OBLIGATOIRE du postId
-              username: post["username"]!,
-              content: post["content"]!,
-              imageUrl: post["imageUrl"],
-              fileType: post["fileType"],
-              onFavoriteToggle: (postMap, isFav) {
-                // Logique des favoris si nécessaire
-              },
-            ),
-          ),
-        ),
-        if (_userPosts.isEmpty)
-          Container(
+    return StreamBuilder<QuerySnapshot>(
+      stream: _userPostsStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(child: Text('Erreur: ${snapshot.error}'));
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return Container(
             padding: const EdgeInsets.all(40),
             child: Column(
               children: [
@@ -678,8 +687,57 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ],
             ),
-          ),
-      ],
+          );
+        }
+
+        final posts = snapshot.data!.docs;
+
+        return Column(
+          children: [
+            // Indicateur du nombre de posts
+            Container(
+              padding: const EdgeInsets.all(8),
+              margin: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green[50],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                "${posts.length} publication${posts.length > 1 ? 's' : ''}",
+                style: TextStyle(
+                  color: Colors.green[700],
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+
+            // Liste des posts AVEC GESTES
+            ...posts.map((doc) {
+              final data = doc.data() as Map<String, dynamic>;
+              return GestureDetector(
+                onLongPress: () => _showPostOptions(context, doc.id, data),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
+                  child: PostCard(
+                    postId: doc.id,
+                    username:
+                        data['userName'] ?? _userData['name'] ?? 'Utilisateur',
+                    content: data['text'] ?? '',
+                    imageUrl: data['fileUrl'],
+                    fileType: data['fileType'],
+                    onFavoriteToggle: (postMap, isFav) {
+                      // Logique des favoris si nécessaire
+                    },
+                  ),
+                ),
+              );
+            }),
+          ],
+        );
+      },
     );
   }
 
@@ -1024,5 +1082,536 @@ class _ProfilePageState extends State<ProfilePage> {
         ],
       ),
     );
+  }
+
+  // ========== MÉTHODES POUR LES POSTS DE PROFIL ==========
+
+  void _showCreatePostModal() {
+    final TextEditingController postTextController = TextEditingController();
+    String selectedCategory = 'Général';
+    final List<String> categories = [
+      'Général',
+      'Programmation',
+      'Design',
+      'Études',
+      'Loisirs',
+      'Voyages',
+      'Art',
+      'Musique',
+      'Sport',
+      'Autre',
+    ];
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+            title: Row(
+              children: [
+                Icon(Icons.post_add, color: primaryColor),
+                const SizedBox(width: 8),
+                const Text("Créer une publication"),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: postTextController,
+                    decoration: const InputDecoration(
+                      hintText: "Partagez quelque chose avec votre réseau...",
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.all(16),
+                    ),
+                    maxLines: 5,
+                    maxLength: 500,
+                  ),
+                  const SizedBox(height: 16),
+                  DropdownButtonFormField<String>(
+                    initialValue: selectedCategory,
+                    items: categories.map((category) {
+                      return DropdownMenuItem(
+                        value: category,
+                        child: Text(
+                          category,
+                          style: const TextStyle(color: Colors.black),
+                        ),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setModalState(() {
+                        selectedCategory = value!;
+                      });
+                    },
+                    decoration: const InputDecoration(
+                      labelText: "Catégorie",
+                      labelStyle: TextStyle(color: Colors.black),
+                      border: OutlineInputBorder(),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                    ),
+                    style: const TextStyle(color: Colors.black),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    "Ajouter un fichier (optionnel) :",
+                    style: TextStyle(fontWeight: FontWeight.w500),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildFileOption(
+                        Icons.photo,
+                        "Image",
+                        Colors.blue,
+                        () async {
+                          await _pickImageForProfilePost(
+                            postTextController,
+                            selectedCategory,
+                          );
+                        },
+                      ),
+                      _buildFileOption(
+                        Icons.picture_as_pdf,
+                        "PDF",
+                        Colors.red,
+                        () async {
+                          await _pickPdfForProfilePost(
+                            postTextController,
+                            selectedCategory,
+                          );
+                        },
+                      ),
+                      _buildFileOption(
+                        Icons.videocam,
+                        "Vidéo",
+                        Colors.purple,
+                        () async {
+                          await _pickVideoForProfilePost(
+                            postTextController,
+                            selectedCategory,
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("Annuler"),
+              ),
+              ElevatedButton(
+                onPressed: _isSaving
+                    ? null
+                    : () async {
+                        final text = postTextController.text.trim();
+                        if (text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Veuillez écrire un message"),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
+                        Navigator.pop(context);
+                        await _publishProfilePost(
+                          text: text,
+                          category: selectedCategory,
+                        );
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.green,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text("Publier"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFileOption(
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return Column(
+      children: [
+        CircleAvatar(
+          backgroundColor: color.withOpacity(0.1),
+          child: IconButton(
+            icon: Icon(icon, color: color),
+            onPressed: onTap,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: color,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _publishProfilePost({
+    required String text,
+    required String category,
+    String? fileUrl,
+    String? fileType,
+    String? fileName,
+  }) async {
+    try {
+      setState(() => _isSaving = true);
+
+      print("📝 Création du post de profil...");
+
+      // Créer le post
+      await _firestore.collection('posts').add({
+        'text': text,
+        'fileUrl': fileUrl,
+        'fileType': fileType,
+        'fileName': fileName,
+        'categorie': category,
+        'userId': currentUser!.uid,
+        'userName':
+            _userData['name'] ?? currentUser!.displayName ?? 'Utilisateur',
+        'timestamp': FieldValue.serverTimestamp(),
+        'storageProvider': fileUrl != null ? 'cloudinary' : null,
+      });
+
+      print("✅ Post enregistré avec succès");
+
+      // Mettre à jour le compteur
+      await _firestore.collection('users').doc(currentUser!.uid).update({
+        'postsCount': FieldValue.increment(1),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('✅ Publication créée !'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      print("❌ Erreur création post: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('❌ Erreur: $e'), backgroundColor: Colors.red),
+      );
+    } finally {
+      setState(() => _isSaving = false);
+    }
+  }
+
+  Future<void> _pickImageForProfilePost(
+    TextEditingController textController,
+    String category,
+  ) async {
+    try {
+      final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        Navigator.pop(context); // Fermer la modal d'abord
+        setState(() => _isSaving = true);
+
+        print("📤 Début upload image vers Cloudinary...");
+        final fileUrl = await CloudinaryService.uploadFile(pickedFile, 'image');
+        print("📤 Résultat upload image: $fileUrl");
+
+        if (fileUrl != null) {
+          await _publishProfilePost(
+            text: textController.text.isNotEmpty
+                ? textController.text
+                : "Partage une image",
+            category: category,
+            fileUrl: fileUrl,
+            fileType: 'image',
+            fileName: pickedFile.name,
+          );
+        } else {
+          _showError("❌ Échec de l'upload de l'image");
+        }
+        setState(() => _isSaving = false);
+      }
+    } catch (e) {
+      setState(() => _isSaving = false);
+      print("❌ Erreur image: $e");
+      _showError("Erreur image: $e");
+    }
+  }
+
+  Future<void> _pickPdfForProfilePost(
+    TextEditingController textController,
+    String category,
+  ) async {
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf'],
+      );
+      if (result != null && result.files.single.path != null) {
+        Navigator.pop(context); // Fermer la modal d'abord
+        setState(() => _isSaving = true);
+
+        print("📤 Début upload PDF vers Cloudinary...");
+        final fileUrl = await CloudinaryService.uploadFile(
+          XFile(result.files.single.path!),
+          'pdf',
+        );
+        print("📤 Résultat upload PDF: $fileUrl");
+
+        if (fileUrl != null) {
+          await _publishProfilePost(
+            text: textController.text.isNotEmpty
+                ? textController.text
+                : "Partage un document PDF",
+            category: category,
+            fileUrl: fileUrl,
+            fileType: 'pdf',
+            fileName: result.files.single.name,
+          );
+        } else {
+          _showError("❌ Échec de l'upload du PDF");
+        }
+        setState(() => _isSaving = false);
+      }
+    } catch (e) {
+      setState(() => _isSaving = false);
+      print("❌ Erreur PDF: $e");
+      _showError("Erreur PDF: $e");
+    }
+  }
+
+  Future<void> _pickVideoForProfilePost(
+    TextEditingController textController,
+    String category,
+  ) async {
+    try {
+      final pickedFile = await _picker.pickVideo(source: ImageSource.gallery);
+      if (pickedFile != null) {
+        Navigator.pop(context); // Fermer la modal d'abord
+        setState(() => _isSaving = true);
+
+        print("📤 Début upload vidéo vers Cloudinary...");
+        final fileUrl = await CloudinaryService.uploadFile(pickedFile, 'video');
+        print("📤 Résultat upload vidéo: $fileUrl");
+
+        if (fileUrl != null) {
+          await _publishProfilePost(
+            text: textController.text.isNotEmpty
+                ? textController.text
+                : "Partage une vidéo",
+            category: category,
+            fileUrl: fileUrl,
+            fileType: 'video',
+            fileName: pickedFile.name,
+          );
+        } else {
+          _showError("❌ Échec de l'upload de la vidéo");
+        }
+        setState(() => _isSaving = false);
+      }
+    } catch (e) {
+      setState(() => _isSaving = false);
+      print("❌ Erreur vidéo: $e");
+      _showError("Erreur vidéo: $e");
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  Future<void> _editPost(String postId, String newText) async {
+    try {
+      await _firestore.collection('posts').doc(postId).update({
+        'text': newText,
+        'editedAt': FieldValue.serverTimestamp(),
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("✅ Post modifié avec succès !"),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 3),
+        ),
+      );
+    } catch (e) {
+      _showError("Erreur lors de la modification: $e");
+    }
+  }
+
+  Future<void> _deletePost(
+    String postId,
+    String? fileUrl,
+    String? fileType,
+  ) async {
+    bool confirmDelete = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Confirmer la suppression"),
+        content: const Text("Voulez-vous vraiment supprimer ce post ?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Annuler"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Supprimer", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmDelete == true) {
+      try {
+        // Supprimer le fichier de Cloudinary si nécessaire
+        if (fileUrl != null && fileType == 'image') {
+          final success = await CloudinaryService.deleteFileSimple(fileUrl);
+          if (!success) {
+            print(
+              '⚠️ Impossible de supprimer le fichier de Cloudinary, continuation...',
+            );
+          }
+        }
+
+        // Supprimer le post de Firestore
+        await _firestore.collection('posts').doc(postId).delete();
+
+        // Mettre à jour le compteur de posts
+        await _firestore.collection('users').doc(currentUser!.uid).update({
+          'postsCount': FieldValue.increment(-1),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("✅ Post supprimé avec succès !"),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 3),
+          ),
+        );
+      } catch (e) {
+        _showError("Erreur lors de la suppression: $e");
+      }
+    }
+  }
+
+  void _showEditPostDialog(String postId, String currentText) {
+    final TextEditingController editController = TextEditingController(
+      text: currentText,
+    );
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Modifier le post"),
+        content: TextField(
+          controller: editController,
+          decoration: const InputDecoration(
+            hintText: "Modifier votre message...",
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 4,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Annuler"),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (editController.text.trim().isNotEmpty) {
+                Navigator.pop(context);
+                await _editPost(postId, editController.text.trim());
+              }
+            },
+            child: const Text("Modifier"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPostOptions(
+    BuildContext context,
+    String postId,
+    Map<String, dynamic> postData,
+  ) {
+    final String postUserId = postData['userId'] ?? '';
+
+    // Vérifier que l'utilisateur peut modifier/supprimer seulement ses propres posts
+    if (currentUser!.uid != postUserId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Vous ne pouvez modifier que vos propres posts"),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit, color: Colors.blue),
+              title: const Text("Modifier le post"),
+              onTap: () {
+                Navigator.pop(context);
+                _showEditPostDialog(postId, postData['text'] ?? '');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete, color: Colors.red),
+              title: const Text(
+                "Supprimer le post",
+                style: TextStyle(color: Colors.red),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _deletePost(postId, postData['fileUrl'], postData['fileType']);
+              },
+            ),
+            const SizedBox(height: 8),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Annuler"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _bioController.dispose();
+    _ageController.dispose();
+    _schoolController.dispose();
+    _locationController.dispose();
+    _interestsController.dispose();
+    super.dispose();
   }
 }

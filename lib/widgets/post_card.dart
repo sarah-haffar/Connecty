@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import 'package:connecty_app/widgets/pdf_view_page.dart';
+import 'package:connecty_app/screens/video_player_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/interaction_service.dart';
 
@@ -410,31 +411,25 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
-  void _openVideo(BuildContext context) async {
-    if (widget.imageUrl == null) return;
-
-    try {
-      final url = Uri.parse(widget.imageUrl!);
-
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Impossible d'ouvrir la vidéo"),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
+  void _openVideo(BuildContext context) {
+    if (widget.imageUrl == null || widget.imageUrl!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Erreur: ${e.toString()}"),
+        const SnackBar(
+          content: Text("Aucune vidéo disponible"),
           backgroundColor: Colors.red,
         ),
       );
+      return;
     }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => VideoPlayerPage(videoUrl: widget.imageUrl!, title: ''),
+      ),
+    );
   }
+
 
   void _openFile(BuildContext context) async {
     if (widget.imageUrl == null) return;
@@ -829,8 +824,8 @@ class _PostCardState extends State<PostCard> {
     return StatefulBuilder(
       builder: (context, setModalState) {
         final bool isMobile = true;
-        bool _showLikes = false;
-        bool _showComments = true;
+        bool showLikes = false;
+        bool showComments = true;
 
         return SingleChildScrollView(
           child: Column(
@@ -842,8 +837,8 @@ class _PostCardState extends State<PostCard> {
                 ),
               const SizedBox(height: 12),
               _buildModalContent(
-                _showLikes,
-                _showComments,
+                showLikes,
+                showComments,
                 setModalState,
                 context,
                 isMobile,
@@ -859,8 +854,8 @@ class _PostCardState extends State<PostCard> {
     return StatefulBuilder(
       builder: (context, setModalState) {
         final bool isMobile = false;
-        bool _showLikes = false;
-        bool _showComments = true;
+        bool showLikes = false;
+        bool showComments = true;
 
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -873,8 +868,8 @@ class _PostCardState extends State<PostCard> {
             const SizedBox(width: 12),
             Expanded(
               child: _buildModalContent(
-                _showLikes,
-                _showComments,
+                showLikes,
+                showComments,
                 setModalState,
                 context,
                 isMobile,
