@@ -4,6 +4,7 @@ import 'group_page.dart';
 import 'profile_page.dart';
 import 'login_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -25,6 +26,9 @@ class _HomePageState extends State<HomePage> {
 
   final List<String> users = ["Sarah", "Ahmed", "Feriel", "Baha"];
   final List<String> chats = ["Sarah", "Ahmed", "Feriel", "Baha"];
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   Map<String, Map<String, Map<String, Map<String, List<String>>>>>
   createdGroups = {
@@ -68,43 +72,8 @@ class _HomePageState extends State<HomePage> {
     },
   };
 
-  final List<Map<String, dynamic>> posts = [
-    {
-      "username": "Sarah",
-      "content": "On prépare une chorégraphie pour le spectacle de danse 💃🎶",
-      "category": "Clubs",
-      "imageUrl": "assets/post/dance.jpg",
-      "isFavorite": false,
-    },
-    {
-      "username": "Ahmed",
-      "content": "Super entraînement de basket aujourd'hui avec l'équipe 🏀💪",
-      "category": "Sport",
-      "imageUrl": "assets/post/basket.jpg",
-      "isFavorite": false,
-    },
-    {
-      "username": "Feriel",
-      "content": "Mini robot pour le concours de robotique 🤖✨",
-      "category": "Robotique",
-      "imageUrl": "assets/post/robo.jpg",
-      "isFavorite": false,
-    },
-    {
-      "username": "Baha",
-      "content": "Notre club de lecture a choisi 'Le Petit Prince' 📚🌟",
-      "category": "Clubs",
-      "imageUrl": "assets/post/livre.jpg",
-      "isFavorite": false,
-    },
-    {
-      "username": "Nora",
-      "content": "Nouveau tutoriel de peinture digitale 🎨🖌️",
-      "category": "Art",
-      "imageUrl": "assets/post/art.jpg",
-      "isFavorite": false,
-    },
-  ];
+  // SUPPRIMER les posts statiques fictifs
+  // final List<Map<String, dynamic>> posts = [ ... ]; // ← À SUPPRIMER
 
   final List<Map<String, dynamic>> quizQuestions = [
     {
@@ -133,6 +102,24 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadGroupsFromFirestore();
+  }
+
+  // ========== NOUVELLE MÉTHODE : RÉCUPÉRER TOUS LES POSTS ==========
+  Stream<QuerySnapshot> get _allPostsStream {
+    return _firestore
+        .collection('posts')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
+  }
+
+  // ========== MÉTHODE TEMPORAIRE : RÉCUPÉRER LES POSTS FILTRÉS ==========
+  // Pour l'instant, on affiche tous les posts
+  // Plus tard, on filtrera par amis + groupes participants
+  Stream<QuerySnapshot> get _filteredPostsStream {
+    return _firestore
+        .collection('posts')
+        .orderBy('timestamp', descending: true)
+        .snapshots();
   }
 
   Future<void> _loadGroupsFromFirestore() async {
@@ -165,98 +152,13 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showSearchOverlay() {
+    // Cette méthode devra être adaptée pour la recherche en temps réel
     _overlayEntry?.remove();
-
-    final renderBox =
-    _searchFieldKey.currentContext?.findRenderObject() as RenderBox?;
-    final size = renderBox?.size;
-    final offset = renderBox?.localToGlobal(Offset.zero);
-
-    if (size == null || offset == null) return;
-
-    final filteredPosts = posts
-        .where((p) =>
-    p["username"]!.toLowerCase().contains(searchQuery) ||
-        p["content"]!.toLowerCase().contains(searchQuery))
-        .toList();
-
-    final filteredUsers =
-    users.where((u) => u.toLowerCase().contains(searchQuery)).toList();
-
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        left: offset.dx,
-        top: offset.dy + size.height,
-        width: size.width,
-        child: Material(
-          elevation: 4,
-          borderRadius: BorderRadius.circular(8),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 200),
-            child: ListView(
-              padding: EdgeInsets.zero,
-              shrinkWrap: true,
-              children: [
-                ...filteredUsers
-                    .map(
-                      (u) => ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: sidebarColor,
-                      child: Text(
-                        u[0],
-                        style: const TextStyle(color: Colors.black),
-                      ),
-                    ),
-                    title: Text(u),
-                    onTap: () {
-                      _searchController.text = u;
-                      _overlayEntry?.remove();
-                      _overlayEntry = null;
-                      setState(() {
-                        searchQuery = "";
-                      });
-                    },
-                  ),
-                )
-                    .toList(),
-                ...filteredPosts
-                    .map(
-                      (p) => ListTile(
-                    title: Text(p["username"]!),
-                    subtitle: Text(p["content"]!),
-                    onTap: () {
-                      _searchController.text = p["content"]!;
-                      _overlayEntry?.remove();
-                      _overlayEntry = null;
-                      setState(() {
-                        searchQuery = "";
-                      });
-                    },
-                  ),
-                )
-                    .toList(),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
-    Overlay.of(context)?.insert(_overlayEntry!);
+    // Implementation temporaire - à adapter avec la vraie recherche
   }
 
   @override
   Widget build(BuildContext context) {
-    final displayedPosts = posts.where((p) {
-      final matchesCategory =
-          selectedCategory.isEmpty || p["category"] == selectedCategory;
-      final matchesSearch =
-          searchQuery.isEmpty ||
-              p["username"]!.toLowerCase().contains(searchQuery) ||
-              p["content"]!.toLowerCase().contains(searchQuery);
-      return matchesCategory && matchesSearch;
-    }).toList();
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 800;
@@ -397,37 +299,7 @@ class _HomePageState extends State<HomePage> {
                 flex: 3,
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: ListView(
-                    children: [
-                      ...displayedPosts.asMap().entries.map((entry) {
-                        final index = entry.key;
-                        final post = entry.value;
-
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 20),
-                          child: PostCard(
-                            postId: "local_post_$index",
-                            username: post["username"]!,
-                            content: post["content"]!,
-                            imageUrl: post["imageUrl"],
-                            fileType: "image",
-                            onFavoriteToggle: (postMap, isFav) {
-                              setState(() {
-                                final indexPost = posts.indexWhere(
-                                      (p) =>
-                                  p["username"] == postMap["username"] &&
-                                      p["content"] == postMap["content"],
-                                );
-                                if (indexPost != -1) {
-                                  posts[indexPost]["isFavorite"] = isFav;
-                                }
-                              });
-                            },
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
+                  child: _buildPostsList(), // ← MODIFICATION ICI
                 ),
               ),
               if (!isMobile)
@@ -439,6 +311,67 @@ class _HomePageState extends State<HomePage> {
                 ),
             ],
           ),
+        );
+      },
+    );
+  }
+
+  // ========== NOUVELLE MÉTHODE : CONSTRUIRE LA LISTE DES POSTS ==========
+  Widget _buildPostsList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: _filteredPostsStream,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(child: Text('Erreur: ${snapshot.error}'));
+        }
+
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.feed, size: 80, color: Colors.grey),
+                SizedBox(height: 16),
+                Text(
+                  "Aucune publication",
+                  style: TextStyle(fontSize: 18, color: Colors.grey),
+                ),
+                Text(
+                  "Les publications de vos amis et groupes apparaîtront ici",
+                  style: TextStyle(color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }
+
+        final posts = snapshot.data!.docs;
+
+        return ListView.builder(
+          itemCount: posts.length,
+          itemBuilder: (context, index) {
+            final doc = posts[index];
+            final data = doc.data() as Map<String, dynamic>;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: PostCard(
+                postId: doc.id,
+                username: data['userName'] ?? 'Utilisateur',
+                content: data['text'] ?? '',
+                imageUrl: data['fileUrl'],
+                fileType: data['fileType'],
+                onFavoriteToggle: (postMap, isFav) {
+                  // Gérer les favoris si nécessaire
+                },
+              ),
+            );
+          },
         );
       },
     );
@@ -730,25 +663,18 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showFavorites() {
-    final favoritePosts = posts.where((p) => p["isFavorite"] == true).toList();
+    // À ADAPTER : utiliser InteractionService.getUserFavorites()
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text("Posts favoris"),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: favoritePosts.length,
-            itemBuilder: (context, index) {
-              final post = favoritePosts[index];
-              return ListTile(
-                title: Text(post["username"]!),
-                subtitle: Text(post["content"]!),
-              );
-            },
+        content: const Text("Cette fonctionnalité sera bientôt disponible"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
           ),
-        ),
+        ],
       ),
     );
   }
