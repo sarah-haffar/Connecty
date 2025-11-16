@@ -6,6 +6,9 @@ import 'login_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/friendship_service.dart';
+import 'friends_chat_list_page.dart';
+
+
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -1028,21 +1031,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _showChats() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("Chats"),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: chats.length,
-            itemBuilder: (context, index) {
-              return ListTile(title: Text(chats[index]));
-            },
-          ),
-        ),
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const FriendsChatListPage()),
     );
   }
 }
