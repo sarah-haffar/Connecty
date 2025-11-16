@@ -1,6 +1,7 @@
-// lib/services/interaction_service.dart (version sans share_plus)
+// lib/services/interaction_service.dart (version corrigée)
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'notification_service.dart'; // ← IMPORT AJOUTÉ
 
 class InteractionService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -29,12 +30,29 @@ class InteractionService {
     if (likeDoc.exists) {
       await likeRef.delete();
     } else {
-      await likeRef.set({
-        'userId': _currentUser!.uid,
-        'userName':
-            _currentUser!.displayName ?? _currentUser!.email!.split('@').first,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
+      // Récupérer les infos du post pour notifier le propriétaire
+      final postDoc = await _firestore.collection(_posts).doc(postId).get();
+      if (postDoc.exists) {
+        final postData = postDoc.data()!;
+        final postOwnerId = postData['userId'];
+
+        await likeRef.set({
+          'userId': _currentUser!.uid,
+          'userName':
+              _currentUser!.displayName ??
+              _currentUser!.email!.split('@').first,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+
+        // Créer une notification pour le propriétaire du post
+        await NotificationService.createLikeNotification(
+          postId: postId,
+          postOwnerId: postOwnerId,
+          likerName:
+              _currentUser!.displayName ??
+              _currentUser!.email!.split('@').first,
+        );
+      }
     }
   }
 
@@ -73,13 +91,34 @@ class InteractionService {
   static Future<void> addComment(String postId, String content) async {
     if (_currentUser == null || content.trim().isEmpty) return;
 
-    await _firestore.collection(_posts).doc(postId).collection(_comments).add({
-      'userId': _currentUser!.uid,
-      'userName':
-          _currentUser!.displayName ?? _currentUser!.email!.split('@').first,
-      'content': content.trim(),
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+    // Récupérer les infos du post pour notifier le propriétaire
+    final postDoc = await _firestore.collection(_posts).doc(postId).get();
+    if (postDoc.exists) {
+      final postData = postDoc.data()!;
+      final postOwnerId = postData['userId'];
+
+      await _firestore
+          .collection(_posts)
+          .doc(postId)
+          .collection(_comments)
+          .add({
+            'userId': _currentUser!.uid,
+            'userName':
+                _currentUser!.displayName ??
+                _currentUser!.email!.split('@').first,
+            'content': content.trim(),
+            'timestamp': FieldValue.serverTimestamp(),
+          });
+
+      // Créer une notification pour le propriétaire du post
+      await NotificationService.createCommentNotification(
+        postId: postId,
+        postOwnerId: postOwnerId,
+        commenterName:
+            _currentUser!.displayName ?? _currentUser!.email!.split('@').first,
+        commentContent: content.trim(),
+      );
+    }
   }
 
   static Stream<QuerySnapshot> getComments(String postId) {

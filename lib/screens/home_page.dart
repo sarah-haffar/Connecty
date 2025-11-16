@@ -5,6 +5,8 @@ import 'profile_page.dart';
 import 'login_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../widgets/notification_dialog.dart';
+import '../services/notification_service.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -23,6 +25,7 @@ class _HomePageState extends State<HomePage> {
   String? selectedAnswer;
   String feedbackMessage = "";
   int currentQuizIndex = 0;
+  int _unreadNotificationsCount = 0;
 
   final List<String> users = ["Sarah", "Ahmed", "Feriel", "Baha"];
   final List<String> chats = ["Sarah", "Ahmed", "Feriel", "Baha"];
@@ -102,6 +105,18 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadGroupsFromFirestore();
+    _initializeNotifications();
+  }
+
+  void _initializeNotifications() {
+    // Écouter le compteur de notifications non lues
+    NotificationService.getUnreadCount().listen((count) {
+      if (mounted) {
+        setState(() {
+          _unreadNotificationsCount = count;
+        });
+      }
+    });
   }
 
   // ========== NOUVELLE MÉTHODE : RÉCUPÉRER TOUS LES POSTS ==========
@@ -182,8 +197,8 @@ class _HomePageState extends State<HomePage> {
                   },
                   child: Image.asset(
                     "assets/Connecty_logo_3.PNG",
-                    height: isMobile ? 90 : 80,
-                    width: isMobile ? 70 : 80,
+                    height: isMobile ? 70 : 80,
+                    width: isMobile ? 60 : 80,
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -270,10 +285,42 @@ class _HomePageState extends State<HomePage> {
                 onPressed: _showChats,
               ),
               IconButton(
-                icon: const Icon(Icons.notifications),
+                icon: Stack(
+                  children: [
+                    const Icon(Icons.notifications),
+                    if (_unreadNotificationsCount > 0)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 14,
+                            minHeight: 14,
+                          ),
+                          child: Text(
+                            _unreadNotificationsCount > 9
+                                ? '9+'
+                                : '$_unreadNotificationsCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
                 tooltip: "Notifications",
-                onPressed: () {},
+                onPressed: _showNotifications,
               ),
+
               IconButton(
                 icon: const Icon(Icons.person),
                 tooltip: "Profil",
@@ -318,6 +365,14 @@ class _HomePageState extends State<HomePage> {
           ),
         );
       },
+    );
+  }
+
+  void _showNotifications() {
+    showDialog(
+      context: context,
+      builder: (context) =>
+          NotificationDialog(unreadCount: _unreadNotificationsCount),
     );
   }
 
@@ -712,38 +767,22 @@ class _HomePageState extends State<HomePage> {
                       .orderBy('addedAt', descending: true)
                       .snapshots(),
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
+                    if (!snapshot.hasData) {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    if (snapshot.hasError) {
-                      return Center(child: Text('Erreur: ${snapshot.error}'));
-                    }
-
-                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      return const Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.star_border,
-                              size: 80,
-                              color: Colors.grey,
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              "Aucun favori",
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.grey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
                     final favorites = snapshot.data!.docs;
+
+                    // DEBUG
+                    print('=== DEBUG FAVORIS ===');
+                    for (int i = 0; i < favorites.length; i++) {
+                      final doc = favorites[i];
+                      final postData = doc['postData'] as Map<String, dynamic>;
+                      print('Favori $i:');
+                      print('  - Document ID: ${doc.id}');
+                      print('  - Post ID: ${postData['postId']}');
+                      print('  - Username: ${postData['userName']}');
+                    }
 
                     return ListView.builder(
                       itemCount: favorites.length,
@@ -751,11 +790,13 @@ class _HomePageState extends State<HomePage> {
                         final favoriteDoc = favorites[index];
                         final postData =
                             favoriteDoc['postData'] as Map<String, dynamic>;
+                        final originalPostId =
+                            postData['postId'] ?? favoriteDoc.id;
 
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 12),
                           child: PostCard(
-                            postId: favoriteDoc.id,
+                            postId: originalPostId,
                             username: postData['userName'] ?? 'Utilisateur',
                             content: postData['text'] ?? '',
                             imageUrl: postData['fileUrl'],
@@ -763,11 +804,18 @@ class _HomePageState extends State<HomePage> {
                             isInitiallyFavorite: true,
                             onFavoriteToggle: (postMap, isFav) async {
                               if (!isFav) {
+                                print('=== SUPPRESSION ===');
+                                print('Index: $index');
+                                print('Document ID: ${favoriteDoc.id}');
+                                print('Post ID: $originalPostId');
+                                print('Username: ${postData['userName']}');
+
+                                // CORRECTION : Utilisez postId comme identifiant
                                 await _firestore
                                     .collection('users')
                                     .doc(currentUser.uid)
                                     .collection('favorites')
-                                    .doc(favoriteDoc.id)
+                                    .doc(originalPostId) // ← CHANGEMENT ICI
                                     .delete();
                               }
                             },

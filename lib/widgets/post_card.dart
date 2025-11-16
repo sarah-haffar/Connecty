@@ -41,8 +41,10 @@ class PostCard extends StatefulWidget {
 class _PostCardState extends State<PostCard> {
   bool showComments = false;
   bool showLikes = false;
-  bool isFavorite = false;
   bool isLiked = false;
+
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   final Color primaryColor = const Color(0xFF6A1B9A);
   final Color backgroundColor = const Color(0xFFEDE7F6);
@@ -72,11 +74,9 @@ class _PostCardState extends State<PostCard> {
 
   void _checkUserInteractions() async {
     final liked = await InteractionService.isLikedByUser(widget.postId);
-    final favorited = await InteractionService.isFavorite(widget.postId);
     if (mounted) {
       setState(() {
         isLiked = liked;
-        isFavorite = favorited;
       });
     }
   }
@@ -91,14 +91,9 @@ class _PostCardState extends State<PostCard> {
     }
   }
 
-  void _toggleFavorite() async {
+  void _toggleFavorite(bool currentFavoriteState) async {
     await InteractionService.toggleFavorite(widget.postId);
-    final newFavoriteState = !isFavorite;
-    if (mounted) {
-      setState(() {
-        isFavorite = newFavoriteState;
-      });
-    }
+    final newFavoriteState = !currentFavoriteState;
 
     widget.onFavoriteToggle?.call({
       "username": widget.username,
@@ -570,13 +565,24 @@ class _PostCardState extends State<PostCard> {
           },
         ),
 
-        // FAVORI
-        _buildActionIcon(
-          isFavorite ? Icons.star : Icons.star_border,
-          'Favori',
-          _toggleFavorite,
-          isFavorite ? Colors.amber : Colors.grey[700]!,
-          isMobile,
+        StreamBuilder<DocumentSnapshot>(
+          stream: _firestore
+              .collection('users')
+              .doc(_auth.currentUser?.uid)
+              .collection('favorites')
+              .doc(widget.postId)
+              .snapshots(),
+          builder: (context, snapshot) {
+            final isFavorite = snapshot.hasData && snapshot.data!.exists;
+
+            return _buildActionIcon(
+              isFavorite ? Icons.star : Icons.star_border,
+              'Favori',
+              () => _toggleFavorite(isFavorite),
+              isFavorite ? Colors.amber : Colors.grey[700]!,
+              isMobile,
+            );
+          },
         ),
       ],
     );
