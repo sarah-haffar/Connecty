@@ -1,6 +1,7 @@
 // lib/services/friendship_service.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'notification_service.dart';
 
 class FriendshipService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -14,7 +15,8 @@ class FriendshipService {
   // ========== ENVOYER UNE DEMANDE D'AMI ==========
   static Future<void> sendFriendRequest(String targetUserId) async {
     if (_currentUser == null) throw Exception("Utilisateur non connecté");
-    if (_currentUser!.uid == targetUserId) throw Exception("Impossible de s'ajouter soi-même");
+    if (_currentUser!.uid == targetUserId)
+      throw Exception("Impossible de s'ajouter soi-même");
 
     final currentUserId = _currentUser!.uid;
 
@@ -31,7 +33,12 @@ class FriendshipService {
     }
 
     // Créer la demande d'ami
-    final requestId = _firestore.collection(_users).doc(targetUserId).collection(_friendRequests).doc().id;
+    final requestId = _firestore
+        .collection(_users)
+        .doc(targetUserId)
+        .collection(_friendRequests)
+        .doc()
+        .id;
 
     await _firestore
         .collection(_users)
@@ -40,10 +47,19 @@ class FriendshipService {
         .doc(requestId)
         .set({
           'from': currentUserId,
-          'fromName': _currentUser!.displayName ?? _currentUser!.email!.split('@').first,
+          'fromName':
+              _currentUser!.displayName ??
+              _currentUser!.email!.split('@').first,
           'status': 'pending',
           'timestamp': FieldValue.serverTimestamp(),
         });
+
+    //CRÉER LA NOTIFICATION - AJOUTEZ CES LIGNES
+    await NotificationService.createFriendRequestNotification(
+      targetUserId: targetUserId,
+      senderName:
+          _currentUser!.displayName ?? _currentUser!.email!.split('@').first,
+    );
 
     print("✅ Demande d'ami envoyée à $targetUserId");
   }
@@ -74,29 +90,49 @@ class FriendshipService {
 
     // 1. Mettre à jour la demande → accepted
     batch.update(
-      _firestore.collection(_users).doc(currentUserId).collection(_friendRequests).doc(requestId),
-      {'status': 'accepted', 'acceptedAt': FieldValue.serverTimestamp()}
+      _firestore
+          .collection(_users)
+          .doc(currentUserId)
+          .collection(_friendRequests)
+          .doc(requestId),
+      {'status': 'accepted', 'acceptedAt': FieldValue.serverTimestamp()},
     );
 
     // 2. Ajouter l'ami dans MA liste d'amis
     batch.set(
-      _firestore.collection(_users).doc(currentUserId).collection(_friends).doc(fromUserId),
+      _firestore
+          .collection(_users)
+          .doc(currentUserId)
+          .collection(_friends)
+          .doc(fromUserId),
       {
         'since': FieldValue.serverTimestamp(),
         'friendName': requestData['fromName'],
-      }
+      },
     );
 
     // 3. Ajouter l'ami dans SA liste d'amis
     batch.set(
-      _firestore.collection(_users).doc(fromUserId).collection(_friends).doc(currentUserId),
+      _firestore
+          .collection(_users)
+          .doc(fromUserId)
+          .collection(_friends)
+          .doc(currentUserId),
       {
         'since': FieldValue.serverTimestamp(),
-        'friendName': _currentUser!.displayName ?? _currentUser!.email!.split('@').first,
-      }
+        'friendName':
+            _currentUser!.displayName ?? _currentUser!.email!.split('@').first,
+      },
     );
 
     await batch.commit();
+
+    //CRÉER LA NOTIFICATION D'ACCEPTATION - AJOUTEZ CES LIGNES
+    await NotificationService.createFriendRequestAcceptedNotification(
+      targetUserId: fromUserId,
+      accepterName:
+          _currentUser!.displayName ?? _currentUser!.email!.split('@').first,
+    );
     print("✅ Demande d'ami acceptée de $fromUserId");
   }
 
@@ -146,12 +182,20 @@ class FriendshipService {
 
     // Supprimer de MA liste d'amis
     batch.delete(
-      _firestore.collection(_users).doc(_currentUser!.uid).collection(_friends).doc(friendId)
+      _firestore
+          .collection(_users)
+          .doc(_currentUser!.uid)
+          .collection(_friends)
+          .doc(friendId),
     );
 
     // Supprimer de SA liste d'amis
     batch.delete(
-      _firestore.collection(_users).doc(friendId).collection(_friends).doc(_currentUser!.uid)
+      _firestore
+          .collection(_users)
+          .doc(friendId)
+          .collection(_friends)
+          .doc(_currentUser!.uid),
     );
 
     await batch.commit();
@@ -197,7 +241,9 @@ class FriendshipService {
   }
 
   // ========== VÉRIFIER LE STATUT D'AMITIÉ ==========
-  static Future<Map<String, dynamic>> checkFriendshipStatus(String targetUserId) async {
+  static Future<Map<String, dynamic>> checkFriendshipStatus(
+    String targetUserId,
+  ) async {
     if (_currentUser == null) {
       return {'error': 'Utilisateur non connecté'};
     }
@@ -238,7 +284,9 @@ class FriendshipService {
     return friendDoc.exists;
   }
 
-  static Future<Map<String, dynamic>> _checkExistingRequest(String targetUserId) async {
+  static Future<Map<String, dynamic>> _checkExistingRequest(
+    String targetUserId,
+  ) async {
     final requestSnapshot = await _firestore
         .collection(_users)
         .doc(targetUserId)
@@ -249,11 +297,15 @@ class FriendshipService {
 
     return {
       'exists': requestSnapshot.docs.isNotEmpty,
-      'requestId': requestSnapshot.docs.isNotEmpty ? requestSnapshot.docs.first.id : null,
+      'requestId': requestSnapshot.docs.isNotEmpty
+          ? requestSnapshot.docs.first.id
+          : null,
     };
   }
 
-  static Future<Map<String, dynamic>> _checkPendingRequest(String targetUserId) async {
+  static Future<Map<String, dynamic>> _checkPendingRequest(
+    String targetUserId,
+  ) async {
     final currentUserId = _currentUser!.uid;
 
     // Vérifier si J'AI envoyé une demande
@@ -277,7 +329,9 @@ class FriendshipService {
     return {
       'sent': sentRequest.docs.isNotEmpty,
       'received': receivedRequest.docs.isNotEmpty,
-      'requestId': receivedRequest.docs.isNotEmpty ? receivedRequest.docs.first.id : null,
+      'requestId': receivedRequest.docs.isNotEmpty
+          ? receivedRequest.docs.first.id
+          : null,
     };
   }
 
@@ -300,6 +354,31 @@ class FriendshipService {
     } catch (e) {
       print("❌ Erreur récupération user data: $e");
       return null;
+    }
+  }
+
+  // Méthode temporaire pour migrer les invitations existantes
+  static Future<void> migrateExistingFriendRequests() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    final requestsSnapshot = await _firestore
+        .collection(_users)
+        .doc(currentUser.uid)
+        .collection(_friendRequests)
+        .where('status', isEqualTo: 'pending')
+        .get();
+
+    for (final doc in requestsSnapshot.docs) {
+      final data = doc.data();
+      final fromUserId = data['from'];
+      final fromUserName = data['fromName'];
+
+      // Créer une notification pour chaque demande existante
+      await NotificationService.createFriendRequestNotification(
+        targetUserId: currentUser.uid,
+        senderName: fromUserName,
+      );
     }
   }
 }

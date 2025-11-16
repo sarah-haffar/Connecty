@@ -108,6 +108,11 @@ class _HomePageState extends State<HomePage> {
     super.initState();
     _loadGroupsFromFirestore();
     _initializeNotifications();
+    _migrateExistingRequests();
+  }
+
+  void _migrateExistingRequests() {
+    FriendshipService.migrateExistingFriendRequests();
   }
 
   void _initializeNotifications() {

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/notification_service.dart';
+import '../services/friendship_service.dart';
 
 class NotificationDialog extends StatefulWidget {
   final int unreadCount;
@@ -274,15 +275,45 @@ class _NotificationDialogState extends State<NotificationDialog> {
                   borderRadius: BorderRadius.circular(6.0),
                 ),
               ),
-              onPressed: () {
-                NotificationService.acceptFriendRequest(
-                  notificationId,
-                  friendUserId,
-                  friendName,
-                );
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Demande d\'amitié acceptée')),
-                );
+              onPressed: () async {
+                try {
+                  // D'abord, trouver l'ID de la demande d'amitié
+                  final friendshipStatus =
+                      await FriendshipService.checkFriendshipStatus(
+                        friendUserId,
+                      );
+
+                  if (friendshipStatus['hasReceivedRequest'] == true &&
+                      friendshipStatus['requestId'] != null) {
+                    await FriendshipService.acceptFriendRequest(
+                      friendshipStatus['requestId'],
+                    );
+
+                    // Marquer la notification comme lue
+                    await NotificationService.markAsRead(notificationId);
+
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Demande d\'amitié acceptée'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                      setState(() {}); // Rafraîchir l'interface
+                    }
+                  } else {
+                    throw Exception('Demande d\'ami non trouvée');
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Erreur: $e'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
               },
               child: const Text(
                 'Accepter',
@@ -304,11 +335,45 @@ class _NotificationDialogState extends State<NotificationDialog> {
                   borderRadius: BorderRadius.circular(6.0),
                 ),
               ),
-              onPressed: () {
-                NotificationService.declineFriendRequest(notificationId);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Demande d\'amitié refusée')),
-                );
+              onPressed: () async {
+                try {
+                  final friendshipStatus =
+                      await FriendshipService.checkFriendshipStatus(
+                        friendUserId,
+                      );
+
+                  if (friendshipStatus['hasReceivedRequest'] == true &&
+                      friendshipStatus['requestId'] != null) {
+                    await FriendshipService.declineFriendRequest(
+                      friendshipStatus['requestId'],
+                    );
+
+                    // Marquer la notification comme lue
+                    await NotificationService.markAsRead(notificationId);
+
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Demande d\'amitié refusée'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                      setState(() {}); // Rafraîchir l'interface
+                    }
+                  } else {
+                    // Si pas de demande trouvée, simplement marquer la notification comme lue
+                    await NotificationService.markAsRead(notificationId);
+                    if (mounted) {
+                      setState(() {});
+                    }
+                  }
+                } catch (e) {
+                  // En cas d'erreur, marquer quand même comme lue
+                  await NotificationService.markAsRead(notificationId);
+                  if (mounted) {
+                    setState(() {});
+                  }
+                }
               },
               child: const Text(
                 'Refuser',
