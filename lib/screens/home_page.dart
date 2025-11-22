@@ -77,9 +77,6 @@ class _HomePageState extends State<HomePage> {
     },
   };
 
-  // SUPPRIMER les posts statiques fictifs
-  // final List<Map<String, dynamic>> posts = [ ... ]; // ← À SUPPRIMER
-
   final List<Map<String, dynamic>> quizQuestions = [
     {
       "question": "Quelle est la capitale de la France ?",
@@ -126,18 +123,8 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // ========== NOUVELLE MÉTHODE : RÉCUPÉRER TOUS LES POSTS ==========
+  // ========== STREAM SIMPLE POUR TOUS LES POSTS ==========
   Stream<QuerySnapshot> get _allPostsStream {
-    return _firestore
-        .collection('posts')
-        .orderBy('timestamp', descending: true)
-        .snapshots();
-  }
-
-  // ========== MÉTHODE TEMPORAIRE : RÉCUPÉRER LES POSTS FILTRÉS ==========
-  // Pour l'instant, on affiche tous les posts
-  // Plus tard, on filtrera par amis + groupes participants
-  Stream<QuerySnapshot> get _filteredPostsStream {
     return _firestore
         .collection('posts')
         .orderBy('timestamp', descending: true)
@@ -154,7 +141,7 @@ class _HomePageState extends State<HomePage> {
       updatedGroups = Map.from(createdGroups);
 
       for (var doc in snapshot.docs) {
-        final data = doc.data();
+        final data = doc.data() as Map<String, dynamic>;
         final categorie = data['categorie'];
         final niveau = data['niveau'];
         final classe = data['classe'];
@@ -595,7 +582,7 @@ class _HomePageState extends State<HomePage> {
                 flex: 3,
                 child: Padding(
                   padding: const EdgeInsets.all(12),
-                  child: _buildPostsList(), // ← MODIFICATION ICI
+                  child: _buildPostsList(),
                 ),
               ),
               if (!isMobile)
@@ -620,10 +607,12 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  // ========== NOUVELLE MÉTHODE : CONSTRUIRE LA LISTE DES POSTS ==========
+  // ========== CONSTRUIRE LA LISTE DES POSTS FILTRÉS ==========
   Widget _buildPostsList() {
+    final currentUser = _auth.currentUser;
+    
     return StreamBuilder<QuerySnapshot>(
-      stream: _filteredPostsStream,
+      stream: _allPostsStream,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -634,51 +623,87 @@ class _HomePageState extends State<HomePage> {
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.feed, size: 80, color: Colors.grey),
-                SizedBox(height: 16),
-                Text(
-                  "Aucune publication",
-                  style: TextStyle(fontSize: 18, color: Colors.grey),
-                ),
-                Text(
-                  "Les publications de vos amis et groupes apparaîtront ici",
-                  style: TextStyle(color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          );
+          return _buildNoFriendsPostsState();
         }
 
-        final posts = snapshot.data!.docs;
+        // Filtrer les posts pour ne garder que ceux des amis
+        return FutureBuilder<List<String>>(
+          future: FriendshipService.getUserFriendsIds(),
+          builder: (context, friendsSnapshot) {
+            if (friendsSnapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-        return ListView.builder(
-          itemCount: posts.length,
-          itemBuilder: (context, index) {
-            final doc = posts[index];
-            final data = doc.data() as Map<String, dynamic>;
+            final friendsList = friendsSnapshot.data ?? [];
+            // Inclure l'utilisateur connecté
+            if (currentUser != null) {
+              friendsList.add(currentUser.uid);
+            }
 
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 20),
-              child: PostCard(
-                postId: doc.id,
-                username: data['userName'] ?? 'Utilisateur',
-                content: data['text'] ?? '',
-                imageUrl: data['fileUrl'],
-                fileType: data['fileType'],
-                isInitiallyFavorite: false,
-                onFavoriteToggle: (postMap, isFav) {
-                  // Gérer les favoris si nécessaire
-                },
-              ),
+            final filteredPosts = snapshot.data!.docs.where((doc) {
+              final postData = doc.data() as Map<String, dynamic>?;
+              if (postData == null) return false;
+              final postUserId = postData['userId'];
+              return friendsList.contains(postUserId);
+            }).toList();
+
+            if (filteredPosts.isEmpty) {
+              return _buildNoFriendsPostsState();
+            }
+
+            return ListView.builder(
+              itemCount: filteredPosts.length,
+              itemBuilder: (context, index) {
+                final doc = filteredPosts[index];
+                final data = doc.data() as Map<String, dynamic>;
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: PostCard(
+                    postId: doc.id,
+                    username: data['userName'] ?? 'Utilisateur',
+                    content: data['text'] ?? '',
+                    imageUrl: data['fileUrl'],
+                    fileType: data['fileType'],
+                    isInitiallyFavorite: false,
+                    onFavoriteToggle: (postMap, isFav) {
+                      // Gérer les favoris si nécessaire
+                    },
+                  ),
+                );
+              },
             );
           },
         );
       },
+    );
+  }
+
+  Widget _buildNoFriendsPostsState() {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.people_outline, size: 80, color: Colors.grey),
+          SizedBox(height: 16),
+          Text(
+            "Aucune publication d'ami",
+            style: TextStyle(fontSize: 18, color: Colors.grey),
+          ),
+          SizedBox(height: 8),
+          Text(
+            "Les publications de vos amis apparaîtront ici",
+            style: TextStyle(color: Colors.grey),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 16),
+          Text(
+            "Ajoutez des amis pour voir leurs publications !",
+            style: TextStyle(color: Colors.grey, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 
@@ -1009,23 +1034,12 @@ class _HomePageState extends State<HomePage> {
 
                     final favorites = snapshot.data!.docs;
 
-                    // DEBUG
-                    print('=== DEBUG FAVORIS ===');
-                    for (int i = 0; i < favorites.length; i++) {
-                      final doc = favorites[i];
-                      final postData = doc['postData'] as Map<String, dynamic>;
-                      print('Favori $i:');
-                      print('  - Document ID: ${doc.id}');
-                      print('  - Post ID: ${postData['postId']}');
-                      print('  - Username: ${postData['userName']}');
-                    }
-
                     return ListView.builder(
                       itemCount: favorites.length,
                       itemBuilder: (context, index) {
                         final favoriteDoc = favorites[index];
                         final postData =
-                            favoriteDoc['postData'] as Map<String, dynamic>;
+                            favoriteDoc.data() as Map<String, dynamic>;
                         final originalPostId =
                             postData['postId'] ?? favoriteDoc.id;
 
@@ -1040,18 +1054,11 @@ class _HomePageState extends State<HomePage> {
                             isInitiallyFavorite: true,
                             onFavoriteToggle: (postMap, isFav) async {
                               if (!isFav) {
-                                print('=== SUPPRESSION ===');
-                                print('Index: $index');
-                                print('Document ID: ${favoriteDoc.id}');
-                                print('Post ID: $originalPostId');
-                                print('Username: ${postData['userName']}');
-
-                                // CORRECTION : Utilisez postId comme identifiant
                                 await _firestore
                                     .collection('users')
                                     .doc(currentUser.uid)
                                     .collection('favorites')
-                                    .doc(originalPostId) // ← CHANGEMENT ICI
+                                    .doc(originalPostId)
                                     .delete();
                               }
                             },
