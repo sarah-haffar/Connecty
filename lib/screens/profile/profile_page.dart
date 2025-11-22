@@ -60,6 +60,9 @@ class _ProfilePageState extends State<ProfilePage> {
   };
   bool _isLoadingFriendship = false;
 
+  // Nouvelle variable pour les favoris
+  int _favoritesCount = 0;
+
   // Stream pour les posts en temps réel
   Stream<QuerySnapshot> get _userPostsStream {
     final String userIdToLoad = _viewedUserId ?? currentUser?.uid ?? '';
@@ -86,8 +89,37 @@ class _ProfilePageState extends State<ProfilePage> {
     await Future.wait([
       _loadUserData(),
       _loadUserFriends(),
+      _loadFavoritesCount(), // ← AJOUT IMPORTANT
     ]);
     setState(() => _isLoading = false);
+  }
+
+  // ========== NOUVELLE MÉTHODE : COMPTER LES FAVORIS ==========
+  Future<void> _loadFavoritesCount() async {
+    try {
+      final String userIdToLoad = _viewedUserId ?? currentUser?.uid ?? '';
+      if (userIdToLoad.isEmpty) return;
+
+      final favoritesSnapshot = await _firestore
+          .collection('users')
+          .doc(userIdToLoad)
+          .collection('favorites')
+          .get();
+
+      setState(() {
+        _favoritesCount = favoritesSnapshot.docs.length;
+      });
+
+      // Mettre à jour le compteur dans les données utilisateur
+      if (_isCurrentUserProfile) {
+        await _firestore.collection('users').doc(userIdToLoad).update({
+          'favoritesCount': _favoritesCount,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+    } catch (e) {
+      print("❌ Erreur chargement favoris: $e");
+    }
   }
 
   void _initializeProfile() {
@@ -559,7 +591,7 @@ class _ProfilePageState extends State<ProfilePage> {
               return _buildStatItem("Publications", postsCount);
             },
           ),
-          _buildStatItem("Favoris", _userData['favoritesCount'] ?? 0),
+          _buildStatItem("Favoris", _favoritesCount), // ← MODIFIÉ ICI
         ],
       ),
     );
@@ -675,6 +707,8 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
+
+  // ... (le reste du code reste inchangé, méthodes pour les posts, etc.)
 
   // ========== MÉTHODES POUR LES POSTS ==========
 

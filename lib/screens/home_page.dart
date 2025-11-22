@@ -610,7 +610,7 @@ class _HomePageState extends State<HomePage> {
   // ========== CONSTRUIRE LA LISTE DES POSTS FILTRÉS ==========
   Widget _buildPostsList() {
     final currentUser = _auth.currentUser;
-    
+
     return StreamBuilder<QuerySnapshot>(
       stream: _allPostsStream,
       builder: (context, snapshot) {
@@ -1027,42 +1027,76 @@ class _HomePageState extends State<HomePage> {
                       .collection('favorites')
                       .orderBy('addedAt', descending: true)
                       .snapshots(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
+                  builder: (context, favoritesSnapshot) {
+                    if (!favoritesSnapshot.hasData) {
                       return const Center(child: CircularProgressIndicator());
                     }
 
-                    final favorites = snapshot.data!.docs;
+                    final favoriteDocs = favoritesSnapshot.data!.docs;
 
-                    return ListView.builder(
-                      itemCount: favorites.length,
-                      itemBuilder: (context, index) {
-                        final favoriteDoc = favorites[index];
-                        final postData =
-                            favoriteDoc.data() as Map<String, dynamic>;
-                        final originalPostId =
-                            postData['postId'] ?? favoriteDoc.id;
+                    if (favoriteDocs.isEmpty) {
+                      return const Center(
+                        child: Text("Aucun post favori pour le moment"),
+                      );
+                    }
 
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: PostCard(
-                            postId: originalPostId,
-                            username: postData['userName'] ?? 'Utilisateur',
-                            content: postData['text'] ?? '',
-                            imageUrl: postData['fileUrl'],
-                            fileType: postData['fileType'],
-                            isInitiallyFavorite: true,
-                            onFavoriteToggle: (postMap, isFav) async {
-                              if (!isFav) {
-                                await _firestore
-                                    .collection('users')
-                                    .doc(currentUser.uid)
-                                    .collection('favorites')
-                                    .doc(originalPostId)
-                                    .delete();
-                              }
-                            },
-                          ),
+                    // Récupérer les IDs des posts favoris
+                    final favoritePostIds = favoriteDocs.map((doc) {
+                      final data = doc.data() as Map<String, dynamic>?;
+                      return data?['postId'] ?? doc.id;
+                    }).toList();
+
+                    // Maintenant, récupérer les posts COMPLETS depuis la collection 'posts'
+                    return StreamBuilder<QuerySnapshot>(
+                      stream: _firestore
+                          .collection('posts')
+                          .where(FieldPath.documentId, whereIn: favoritePostIds)
+                          .snapshots(),
+                      builder: (context, postsSnapshot) {
+                        if (!postsSnapshot.hasData) {
+                          return const Center(
+                            child: CircularProgressIndicator(),
+                          );
+                        }
+
+                        final posts = postsSnapshot.data!.docs;
+
+                        // Trier les posts dans l'ordre des favoris (plus récent en premier)
+                        posts.sort((a, b) {
+                          final aIndex = favoritePostIds.indexOf(a.id);
+                          final bIndex = favoritePostIds.indexOf(b.id);
+                          return aIndex.compareTo(bIndex);
+                        });
+
+                        return ListView.builder(
+                          itemCount: posts.length,
+                          itemBuilder: (context, index) {
+                            final postDoc = posts[index];
+                            final postData =
+                                postDoc.data() as Map<String, dynamic>;
+
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: PostCard(
+                                postId: postDoc.id,
+                                username: postData['userName'] ?? 'Utilisateur',
+                                content: postData['text'] ?? '',
+                                imageUrl: postData['fileUrl'],
+                                fileType: postData['fileType'],
+                                isInitiallyFavorite: true,
+                                onFavoriteToggle: (postMap, isFav) async {
+                                  if (!isFav) {
+                                    await _firestore
+                                        .collection('users')
+                                        .doc(currentUser.uid)
+                                        .collection('favorites')
+                                        .doc(postDoc.id)
+                                        .delete();
+                                  }
+                                },
+                              ),
+                            );
+                          },
                         );
                       },
                     );
