@@ -799,14 +799,6 @@ class _HomePageState extends State<HomePage> {
             ),
             const Divider(color: Colors.black26),
             ListTile(
-              leading: const Icon(Icons.settings, color: Colors.black87),
-              title: const Text(
-                "Paramètres",
-                style: TextStyle(color: Colors.black87),
-              ),
-              onTap: () {},
-            ),
-            ListTile(
               leading: const Icon(Icons.logout, color: Colors.black87),
               title: const Text(
                 "Déconnexion",

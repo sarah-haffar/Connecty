@@ -491,13 +491,6 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(width: 10),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications),
-            tooltip: "Notifications",
-            onPressed: () {},
-          ),
-        ],
       ),
       body: _buildProfileContent(),
     );
