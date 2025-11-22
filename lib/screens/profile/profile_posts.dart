@@ -122,6 +122,8 @@ class ProfilePosts extends StatelessWidget {
                 content: data['text'] ?? '',
                 imageUrl: data['fileUrl'],
                 fileType: data['fileType'],
+                timestamp: data['timestamp'], // ← CORRECTION ICI
+                isInitiallyFavorite: false,
                 onFavoriteToggle: (postMap, isFav) {
                   // Logique des favoris si nécessaire
                 },

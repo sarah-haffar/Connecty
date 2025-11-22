@@ -665,6 +665,7 @@ class _HomePageState extends State<HomePage> {
                     content: data['text'] ?? '',
                     imageUrl: data['fileUrl'],
                     fileType: data['fileType'],
+                    timestamp: data['timestamp'],
                     isInitiallyFavorite: false,
                     onFavoriteToggle: (postMap, isFav) {
                       // Gérer les favoris si nécessaire
@@ -1083,6 +1084,7 @@ class _HomePageState extends State<HomePage> {
                                 content: postData['text'] ?? '',
                                 imageUrl: postData['fileUrl'],
                                 fileType: postData['fileType'],
+                                timestamp: postData['timestamp'],
                                 isInitiallyFavorite: true,
                                 onFavoriteToggle: (postMap, isFav) async {
                                   if (!isFav) {

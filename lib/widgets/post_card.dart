@@ -1,4 +1,4 @@
-import 'package:cloud_firestore/cloud_firestore.dart'; // ← IMPORT AJOUTÉ
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
@@ -17,6 +17,7 @@ class PostCard extends StatefulWidget {
   final Color contentColor;
   final String? fileType;
   final bool isInitiallyFavorite;
+  final Timestamp? timestamp;
   final void Function(Map<String, dynamic> postMap, bool isFavorite)?
   onFavoriteToggle;
 
@@ -31,6 +32,7 @@ class PostCard extends StatefulWidget {
     this.contentColor = Colors.black,
     this.fileType,
     this.isInitiallyFavorite = false,
+    this.timestamp,
     this.onFavoriteToggle,
   });
 
@@ -78,6 +80,59 @@ class _PostCardState extends State<PostCard> {
       setState(() {
         isLiked = liked;
       });
+    }
+  }
+
+  // ========== FORMATAGE DE LA DATE ==========
+  String _formatTimestamp(Timestamp? timestamp) {
+    if (timestamp == null) return 'Date inconnue';
+    
+    final date = timestamp.toDate();
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inSeconds < 60) {
+      return 'À l\'instant';
+    } else if (difference.inMinutes < 60) {
+      return 'Il y a ${difference.inMinutes} min';
+    } else if (difference.inHours < 24) {
+      return 'Il y a ${difference.inHours} h';
+    } else if (difference.inDays < 7) {
+      return 'Il y a ${difference.inDays} j';
+    } else {
+      return '${date.day}/${date.month}/${date.year} à ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+    }
+  }
+
+  // ========== MÉTHODE POUR RÉCUPÉRER LA PHOTO DE PROFIL ==========
+  Future<Map<String, dynamic>?> _getUserProfileData() async {
+    try {
+      // Chercher l'utilisateur par son nom d'abord
+      final userQuery = await _firestore
+          .collection('users')
+          .where('name', isEqualTo: widget.username)
+          .limit(1)
+          .get();
+
+      if (userQuery.docs.isNotEmpty) {
+        return userQuery.docs.first.data();
+      }
+
+      // Si pas trouvé par nom, chercher par email ou autre critère
+      final allUsers = await _firestore.collection('users').get();
+      for (var doc in allUsers.docs) {
+        final data = doc.data();
+        if (data['name'] == widget.username || 
+            data['email']?.contains(widget.username.toLowerCase()) == true) {
+          return data;
+        }
+      }
+
+      // Retourner null si pas trouvé
+      return null;
+    } catch (e) {
+      print('Erreur récupération profil: $e');
+      return null;
     }
   }
 
@@ -158,30 +213,75 @@ class _PostCardState extends State<PostCard> {
           // En-tête avec avatar et username
           Row(
             children: [
-              if (widget.profileImageUrl != null)
-                CircleAvatar(
-                  radius: isMobile ? 16 : 18,
-                  backgroundImage: AssetImage(widget.profileImageUrl!),
-                )
-              else
-                CircleAvatar(
-                  radius: isMobile ? 16 : 18,
-                  backgroundColor: primaryColor,
-                  child: Text(
-                    widget.username[0],
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
+              // PHOTO RÉELLE DE L'UTILISATEUR
+              FutureBuilder<Map<String, dynamic>?>(
+                future: _getUserProfileData(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return CircleAvatar(
+                      radius: isMobile ? 16 : 18,
+                      backgroundColor: Colors.grey[300],
+                    );
+                  }
+                  
+                  if (snapshot.hasData && snapshot.data != null) {
+                    final userData = snapshot.data!;
+                    final profileImage = userData['profileImage'];
+                    
+                    return CircleAvatar(
+                      radius: isMobile ? 16 : 18,
+                      backgroundColor: primaryColor.withOpacity(0.1),
+                      backgroundImage: profileImage != null
+                          ? NetworkImage(profileImage) as ImageProvider
+                          : const AssetImage("assets/post/art.jpg"),
+                      child: profileImage == null
+                          ? Text(
+                              widget.username[0],
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            )
+                          : null,
+                    );
+                  }
+                  
+                  // Fallback si l'utilisateur n'est pas trouvé
+                  return CircleAvatar(
+                    radius: isMobile ? 16 : 18,
+                    backgroundColor: primaryColor,
+                    child: Text(
+                      widget.username[0],
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  );
+                },
+              ),
+              
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  widget.username,
-                  style: TextStyle(
-                    color: widget.usernameColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: isMobile ? 14 : 16,
-                  ),
-                  overflow: TextOverflow.ellipsis,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.username,
+                      style: TextStyle(
+                        color: widget.usernameColor,
+                        fontWeight: FontWeight.bold,
+                        fontSize: isMobile ? 14 : 16,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    // DATE ET HEURE DU POST
+                    Text(
+                      _formatTimestamp(widget.timestamp),
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: isMobile ? 10 : 11,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -900,26 +1000,70 @@ class _PostCardState extends State<PostCard> {
       children: [
         Row(
           children: [
-            if (widget.profileImageUrl != null)
-              CircleAvatar(
-                radius: isMobile ? 16 : 18,
-                backgroundImage: AssetImage(widget.profileImageUrl!),
-              )
-            else
-              CircleAvatar(
-                radius: isMobile ? 16 : 18,
-                backgroundColor: primaryColor,
-                child: Text(
-                  widget.username[0],
-                  style: const TextStyle(color: Colors.white),
-                ),
-              ),
+            // PHOTO RÉELLE DANS LE MODAL AUSSI
+            FutureBuilder<Map<String, dynamic>?>(
+              future: _getUserProfileData(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return CircleAvatar(
+                    radius: isMobile ? 16 : 18,
+                    backgroundColor: Colors.grey[300],
+                  );
+                }
+                
+                if (snapshot.hasData && snapshot.data != null) {
+                  final userData = snapshot.data!;
+                  final profileImage = userData['profileImage'];
+                  
+                  return CircleAvatar(
+                    radius: isMobile ? 16 : 18,
+                    backgroundColor: primaryColor.withOpacity(0.1),
+                    backgroundImage: profileImage != null
+                        ? NetworkImage(profileImage) as ImageProvider
+                        : const AssetImage("assets/post/art.jpg"),
+                    child: profileImage == null
+                        ? Text(
+                            widget.username[0],
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          )
+                        : null,
+                  );
+                }
+                
+                return CircleAvatar(
+                  radius: isMobile ? 16 : 18,
+                  backgroundColor: primaryColor,
+                  child: Text(
+                    widget.username[0],
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                );
+              },
+            ),
             const SizedBox(width: 10),
-            Text(
-              widget.username,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: isMobile ? 14 : 16,
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    widget.username,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: isMobile ? 14 : 16,
+                    ),
+                  ),
+                  Text(
+                    _formatTimestamp(widget.timestamp),
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: isMobile ? 10 : 11,
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
