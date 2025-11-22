@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'profile_page.dart';
 
 class ProfileFriends extends StatelessWidget {
   final String? userId;
@@ -48,13 +49,13 @@ class ProfileFriends extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          _buildFriendsContent(),
+          _buildFriendsContent(context),
         ],
       ),
     );
   }
 
-  Widget _buildFriendsContent() {
+  Widget _buildFriendsContent(BuildContext context) {
     return StreamBuilder<QuerySnapshot>(
       stream: _userFriendsStream,
       builder: (context, snapshot) {
@@ -71,7 +72,7 @@ class ProfileFriends extends StatelessWidget {
         }
 
         final friends = snapshot.data!.docs;
-        return _buildFriendsList(friends);
+        return _buildFriendsList(context, friends);
       },
     );
   }
@@ -98,7 +99,7 @@ class ProfileFriends extends StatelessWidget {
     );
   }
 
-  Widget _buildFriendsList(List<QueryDocumentSnapshot> friends) {
+  Widget _buildFriendsList(BuildContext context, List<QueryDocumentSnapshot> friends) {
     return Wrap(
       spacing: 12,
       runSpacing: 12,
@@ -106,31 +107,131 @@ class ProfileFriends extends StatelessWidget {
         final friendId = doc.id;
         final friendData = doc.data() as Map<String, dynamic>;
         
-        return Column(
-          children: [
-            CircleAvatar(
-              radius: 30,
-              backgroundColor: primaryColor.withOpacity(0.1),
-              child: Text(
-                friendData['friendName']?[0] ?? '?',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: primaryColor,
-                ),
+        return FutureBuilder<DocumentSnapshot>(
+          future: FirebaseFirestore.instance
+              .collection('users')
+              .doc(friendId)
+              .get(),
+          builder: (context, userSnapshot) {
+            if (userSnapshot.connectionState == ConnectionState.waiting) {
+              return _buildFriendSkeleton();
+            }
+
+            if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
+              return _buildUnknownFriend();
+            }
+
+            final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+            return _buildFriendItem(context, userData, friendId);
+          },
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildFriendItem(BuildContext context, Map<String, dynamic> userData, String friendId) {
+    return GestureDetector(
+      onTap: () {
+        // Naviguer vers le profil de l'ami
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ProfilePage(userId: friendId),
+          ),
+        );
+      },
+      child: Column(
+        children: [
+          Stack(
+            children: [
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: primaryColor.withOpacity(0.1),
+                backgroundImage: userData['profileImage'] != null
+                    ? NetworkImage(userData['profileImage']!) as ImageProvider
+                    : const AssetImage("assets/post/art.jpg"),
+                child: userData['profileImage'] == null
+                    ? Text(
+                        userData['name']?[0] ?? '?',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: primaryColor,
+                        ),
+                      )
+                    : null,
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              friendData['friendName'] ?? 'Ami',
+              // Badge en ligne (optionnel)
+              if (userData['isOnline'] == true)
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 12,
+                    height: 12,
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          SizedBox(
+            width: 60,
+            child: Text(
+              userData['name'] ?? 'Ami',
               style: const TextStyle(
                 fontSize: 12,
                 color: Colors.black54,
+                fontWeight: FontWeight.w500,
               ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
             ),
-          ],
-        );
-      }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFriendSkeleton() {
+    return Column(
+      children: [
+        CircleAvatar(
+          radius: 30,
+          backgroundColor: Colors.grey[300],
+        ),
+        const SizedBox(height: 4),
+        Container(
+          width: 40,
+          height: 8,
+          color: Colors.grey[300],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUnknownFriend() {
+    return Column(
+      children: [
+        CircleAvatar(
+          radius: 30,
+          backgroundColor: Colors.grey[300],
+          child: const Icon(Icons.person_off, color: Colors.grey, size: 20),
+        ),
+        const SizedBox(height: 4),
+        const Text(
+          "Inconnu",
+          style: TextStyle(
+            fontSize: 10,
+            color: Colors.grey,
+          ),
+        ),
+      ],
     );
   }
 }
