@@ -45,8 +45,19 @@ class ProfilePosts extends StatelessWidget {
           return _buildEmptyState();
         }
 
-        final posts = snapshot.data!.docs;
-        return _buildPostsList(context, posts);
+        // Filtrage : exclure quiz et quizScore
+        final filteredPosts = snapshot.data!.docs.where((doc) {
+          final postData = doc.data() as Map<String, dynamic>?;
+
+          if (postData == null) return false;
+
+          final postType = postData['postType'] ?? 'text';
+
+          // Seuls les posts classiques de l'utilisateur
+          return postType != 'quiz' && postType != 'quizScore';
+        }).toList();
+
+        return _buildPostsList(context, filteredPosts);
       },
     );
   }
@@ -122,7 +133,7 @@ class ProfilePosts extends StatelessWidget {
                 content: data['text'] ?? '',
                 imageUrl: data['fileUrl'],
                 fileType: data['fileType'],
-                timestamp: data['timestamp'], // ← CORRECTION ICI
+                timestamp: data['timestamp'],
                 isInitiallyFavorite: false,
                 onFavoriteToggle: (postMap, isFav) {
                   // Logique des favoris si nécessaire

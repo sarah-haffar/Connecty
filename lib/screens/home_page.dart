@@ -510,11 +510,14 @@ class _HomePageState extends State<HomePage> {
                 tooltip: "Favoris",
                 onPressed: _showFavorites,
               ),
+
+              // 💬 MESSAGES SIMPLES 
               IconButton(
                 icon: const Icon(Icons.message),
                 tooltip: "Messages",
                 onPressed: _showChats,
               ),
+
               IconButton(
                 icon: Stack(
                   children: [
@@ -643,8 +646,16 @@ class _HomePageState extends State<HomePage> {
             final filteredPosts = snapshot.data!.docs.where((doc) {
               final postData = doc.data() as Map<String, dynamic>?;
               if (postData == null) return false;
+
               final postUserId = postData['userId'];
-              return friendsList.contains(postUserId);
+              final postType =
+                  postData['postType'] ??
+                  'text'; // si pas défini, considérer 'text'
+
+              // Seuls les posts classiques apparaissent dans Home
+              return friendsList.contains(postUserId) &&
+                  postType != 'quiz' &&
+                  postType != 'quizScore';
             }).toList();
 
             if (filteredPosts.isEmpty) {

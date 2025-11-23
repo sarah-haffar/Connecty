@@ -48,6 +48,8 @@ dependencies:
   video_player: ^2.9.1
   chewie: ^1.7.1
   dio: ^5.4.0
+  emoji_picker_flutter: ^4.3.0
+  app_badge_plus: ^1.0.0
 
 dev_dependencies:
   flutter_test:

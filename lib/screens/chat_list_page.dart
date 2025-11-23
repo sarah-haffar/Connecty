@@ -1,3 +1,4 @@
+// lib/screens/ChatListPage.dart
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/chat_service.dart';
@@ -12,6 +13,7 @@ class ChatListPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text("Messages"),
         backgroundColor: const Color(0xFF6A1B9A),
+        foregroundColor: Colors.white,
       ),
       body: StreamBuilder<List<Map<String, dynamic>>>(
         stream: ChatService.getChatPreviews(),
@@ -19,80 +21,53 @@ class ChatListPage extends StatelessWidget {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
-
           if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.message, size: 80, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text("Aucune discussion"),
-                  Text("Commencez à discuter avec vos amis !"),
-                ],
-              ),
-            );
+            return const Center(child: Text("Aucune discussion\nCommencez à discuter !", textAlign: TextAlign.center, style: TextStyle(fontSize: 18)));
           }
 
-          final chats = snapshot.data!;
-
           return ListView.builder(
-            itemCount: chats.length,
-            itemBuilder: (context, index) {
-              final chat = chats[index];
-              final timestamp = chat['timestamp'] as Timestamp?;
-              final timeStr = timestamp != null
-                  ? _formatTime(timestamp.toDate())
-                  : '';
+            itemCount: snapshot.data!.length,
+            itemBuilder: (context, i) {
+              final c = snapshot.data![i];
+              final unread = c['unreadCount'] as int? ?? 0;
 
               return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: const Color(0xFF6A1B9A),
-                  child: Text(
-                    chat['friendName'][0].toUpperCase(),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ),
-                title: Text(
-                  chat['friendName'],
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: Text(
-                  chat['lastMessage'],
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: Text(timeStr, style: const TextStyle(fontSize: 12)),
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => ChatPage(
-                        friendId: chat['friendId'],
-                        friendName: chat['friendName'],
+                leading: Stack(
+                  children: [
+                    CircleAvatar(
+                      backgroundImage: c['friendPhotoUrl'] != null ? NetworkImage(c['friendPhotoUrl']) : null,
+                      child: c['friendPhotoUrl'] == null ? Text(c['friendName'][0].toUpperCase()) : null,
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: StreamBuilder<DocumentSnapshot>(
+                        stream: ChatService.friendStatus(c['friendId']),
+                        builder: (context, snap) {
+                          final online = (snap.data?.data() as Map?)?['isOnline'] == true;
+                          return online ? Container(width: 14, height: 14, decoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2))) : const SizedBox();
+                        },
                       ),
                     ),
-                  );
-                },
+                  ],
+                ),
+                title: Text(c['friendName'], style: const TextStyle(fontWeight: FontWeight.w600)),
+                subtitle: c['isTyping'] == true
+                    ? const Text("en train d'écrire...", style: TextStyle(color: Colors.green, fontStyle: FontStyle.italic))
+                    : Text(c['lastMessage'], maxLines: 1, overflow: TextOverflow.ellipsis),
+                trailing: unread > 0
+                    ? Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: const BoxDecoration(color: Color(0xFF6A1B9A), shape: BoxShape.circle),
+                  child: Text('$unread', style: const TextStyle(color: Colors.white, fontSize: 11)),
+                )
+                    : null,
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ChatPage(friendId: c['friendId'], friendName: c['friendName']))),
               );
             },
           );
         },
       ),
     );
-  }
-
-  String _formatTime(DateTime date) {
-    final now = DateTime.now();
-    final today = DateTime(now.year, now.month, now.day);
-    final msgDay = DateTime(date.year, date.month, date.day);
-
-    if (msgDay == today) {
-      return '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
-    } else if (msgDay == today.subtract(const Duration(days: 1))) {
-      return 'Hier';
-    } else {
-      return '${date.day}/${date.month}';
-    }
   }
 }
