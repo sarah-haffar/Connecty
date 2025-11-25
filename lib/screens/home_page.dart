@@ -28,6 +28,7 @@ class _HomePageState extends State<HomePage> {
   String feedbackMessage = "";
   int currentQuizIndex = 0;
   int _unreadNotificationsCount = 0;
+  int _unreadMessagesCount = 0;
 
   final List<String> users = ["Sarah", "Ahmed", "Feriel", "Baha"];
   final List<String> chats = ["Sarah", "Ahmed", "Feriel", "Baha"];
@@ -77,26 +78,6 @@ class _HomePageState extends State<HomePage> {
     },
   };
 
-  final List<Map<String, dynamic>> quizQuestions = [
-    {
-      "question": "Quelle est la capitale de la France ?",
-      "options": ["Paris", "Londres", "Madrid", "Berlin"],
-      "answer": "Paris",
-    },
-    {
-      "question": "Quelle planète est connue comme la planète rouge ?",
-      "options": ["Mars", "Vénus", "Jupiter", "Saturne"],
-      "answer": "Mars",
-    },
-    {
-      "question": "Combien de continents y a-t-il sur Terre ?",
-      "options": ["5", "6", "7", "8"],
-      "answer": "7",
-    },
-  ];
-
-  Map<String, dynamic> get quiz => quizQuestions[currentQuizIndex];
-
   final Color primaryColor = const Color(0xFF6A1B9A);
   final Color sidebarColor = const Color(0xFFF0F0F0);
 
@@ -106,6 +87,34 @@ class _HomePageState extends State<HomePage> {
     _loadGroupsFromFirestore();
     _initializeNotifications();
     _migrateExistingRequests();
+    _initializeUnreadMessagesCount();
+  }
+
+  // Nouvelle méthode pour initialiser le compteur de messages non lus
+  void _initializeUnreadMessagesCount() {
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+    if (currentUserId == null) return;
+
+    // Écouter tous les chats de l'utilisateur
+    FirebaseFirestore.instance
+        .collection('chats')
+        .where('users', arrayContains: currentUserId)
+        .snapshots()
+        .listen((snapshot) {
+          int totalUnread = 0;
+
+          for (var doc in snapshot.docs) {
+            final data = doc.data() as Map<String, dynamic>;
+            final unreadCount = data['unreadCount_$currentUserId'] as int? ?? 0;
+            totalUnread += unreadCount;
+          }
+
+          if (mounted) {
+            setState(() {
+              _unreadMessagesCount = totalUnread;
+            });
+          }
+        });
   }
 
   void _migrateExistingRequests() {
@@ -511,9 +520,40 @@ class _HomePageState extends State<HomePage> {
                 onPressed: _showFavorites,
               ),
 
-              // 💬 MESSAGES SIMPLES 
+              // 💬 MESSAGES AVEC BADGE
               IconButton(
-                icon: const Icon(Icons.message),
+                icon: Stack(
+                  children: [
+                    const Icon(Icons.message),
+                    if (_unreadMessagesCount > 0)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 14,
+                            minHeight: 14,
+                          ),
+                          child: Text(
+                            _unreadMessagesCount > 9
+                                ? '9+'
+                                : '$_unreadMessagesCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
                 tooltip: "Messages",
                 onPressed: _showChats,
               ),
@@ -588,13 +628,6 @@ class _HomePageState extends State<HomePage> {
                   child: _buildPostsList(),
                 ),
               ),
-              if (!isMobile)
-                Container(
-                  width: isTablet ? 220 : 280,
-                  color: sidebarColor,
-                  padding: const EdgeInsets.all(12),
-                  child: _buildRightSidebar(),
-                ),
             ],
           ),
         );
@@ -876,72 +909,6 @@ class _HomePageState extends State<HomePage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildRightSidebar() {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            "🎓 Quiz éducatif du jour",
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
-              color: Colors.black,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            quiz["question"],
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 4),
-          ...quiz["options"].map<Widget>((option) {
-            return RadioListTile<String>(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 0),
-              dense: true,
-              title: Text(
-                option,
-                style: const TextStyle(color: Colors.black87),
-              ),
-              value: option,
-              groupValue: selectedAnswer,
-              onChanged: (value) {
-                setState(() {
-                  selectedAnswer = value;
-                  if (value == quiz["answer"]) {
-                    feedbackMessage = "✅ Bonne réponse !";
-                  } else {
-                    feedbackMessage = "❌ Mauvaise réponse.";
-                  }
-                  Future.delayed(const Duration(seconds: 1), () {
-                    setState(() {
-                      currentQuizIndex =
-                          (currentQuizIndex + 1) % quizQuestions.length;
-                      selectedAnswer = null;
-                      feedbackMessage = "";
-                    });
-                  });
-                });
-              },
-            );
-          }).toList(),
-          const SizedBox(height: 4),
-          Text(
-            feedbackMessage,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -86,7 +86,7 @@ class _PostCardState extends State<PostCard> {
   // ========== FORMATAGE DE LA DATE ==========
   String _formatTimestamp(Timestamp? timestamp) {
     if (timestamp == null) return 'Date inconnue';
-    
+
     final date = timestamp.toDate();
     final now = DateTime.now();
     final difference = now.difference(date);
@@ -122,7 +122,7 @@ class _PostCardState extends State<PostCard> {
       final allUsers = await _firestore.collection('users').get();
       for (var doc in allUsers.docs) {
         final data = doc.data();
-        if (data['name'] == widget.username || 
+        if (data['name'] == widget.username ||
             data['email']?.contains(widget.username.toLowerCase()) == true) {
           return data;
         }
@@ -177,17 +177,6 @@ class _PostCardState extends State<PostCard> {
     await InteractionService.deleteComment(widget.postId, commentId);
   }
 
-  void _sharePost() async {
-    await InteractionService.addShare(widget.postId);
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Post partagé !'),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
   // ========== BUILD METHOD ==========
   @override
   Widget build(BuildContext context) {
@@ -223,11 +212,11 @@ class _PostCardState extends State<PostCard> {
                       backgroundColor: Colors.grey[300],
                     );
                   }
-                  
+
                   if (snapshot.hasData && snapshot.data != null) {
                     final userData = snapshot.data!;
                     final profileImage = userData['profileImage'];
-                    
+
                     return CircleAvatar(
                       radius: isMobile ? 16 : 18,
                       backgroundColor: primaryColor.withOpacity(0.1),
@@ -246,7 +235,7 @@ class _PostCardState extends State<PostCard> {
                           : null,
                     );
                   }
-                  
+
                   // Fallback si l'utilisateur n'est pas trouvé
                   return CircleAvatar(
                     radius: isMobile ? 16 : 18,
@@ -258,7 +247,7 @@ class _PostCardState extends State<PostCard> {
                   );
                 },
               ),
-              
+
               const SizedBox(width: 10),
               Expanded(
                 child: Column(
@@ -650,21 +639,6 @@ class _PostCardState extends State<PostCard> {
           },
         ),
 
-        // PARTAGE
-        StreamBuilder<int>(
-          stream: InteractionService.getSharesCount(widget.postId),
-          builder: (context, snapshot) {
-            final sharesCount = snapshot.data ?? 0;
-            return _buildActionIcon(
-              Icons.share,
-              'Partager ($sharesCount)',
-              _sharePost,
-              Colors.grey[700]!,
-              isMobile,
-            );
-          },
-        ),
-
         StreamBuilder<DocumentSnapshot>(
           stream: _firestore
               .collection('users')
@@ -1010,11 +984,11 @@ class _PostCardState extends State<PostCard> {
                     backgroundColor: Colors.grey[300],
                   );
                 }
-                
+
                 if (snapshot.hasData && snapshot.data != null) {
                   final userData = snapshot.data!;
                   final profileImage = userData['profileImage'];
-                  
+
                   return CircleAvatar(
                     radius: isMobile ? 16 : 18,
                     backgroundColor: primaryColor.withOpacity(0.1),
@@ -1033,7 +1007,7 @@ class _PostCardState extends State<PostCard> {
                         : null,
                   );
                 }
-                
+
                 return CircleAvatar(
                   radius: isMobile ? 16 : 18,
                   backgroundColor: primaryColor,
@@ -1085,8 +1059,6 @@ class _PostCardState extends State<PostCard> {
                 showComments = !showComments;
               });
             }, isMobile),
-            const SizedBox(width: 20),
-            _buildModalActionIcon(Icons.share, false, _sharePost, isMobile),
           ],
         ),
         const SizedBox(height: 12),

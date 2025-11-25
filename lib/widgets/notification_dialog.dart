@@ -451,19 +451,19 @@ class _NotificationDialogState extends State<NotificationDialog> {
     switch (type) {
       case 'like':
       case 'comment':
-        _navigateToPost(data['postId']);
+        //_navigateToPost(data['postId']);
         break;
       case 'friend_request':
       case 'friend_request_accepted':
         // Navigation vers le profil de l'utilisateur
-        _navigateToProfile(data['fromUserId']);
+        // _navigateToProfile(data['fromUserId']);
         break;
       default:
         print('Notification de type inconnu: $type');
     }
   }
 
-  // MÉTHODE AJOUTÉE - Navigation vers le profil utilisateur
+  // Navigation vers le profil utilisateur
   void _navigateToProfile(String userId) {
     print('Navigation vers le profil: $userId');
     // Implémentez la navigation vers le profil utilisateur
