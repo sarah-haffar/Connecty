@@ -380,6 +380,7 @@ class _GroupPageState extends State<GroupPage> {
                           imageUrl: data['fileUrl'],
                           fileType: data['fileType'],
                           profileImageUrl: null,
+                          timestamp: data['timestamp'] as Timestamp?,
                           onFavoriteToggle: (postMap, isFavorite) {},
                         ),
                       ),

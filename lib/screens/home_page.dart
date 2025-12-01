@@ -443,8 +443,8 @@ class _HomePageState extends State<HomePage> {
                   },
                   child: Image.asset(
                     "assets/Connecty_logo_3.PNG",
-                    height: isMobile ? 70 : 80,
-                    width: isMobile ? 60 : 80,
+                    height: isMobile ? 140 : 140,
+                    width: isMobile ? 120 : 140,
                     fit: BoxFit.contain,
                   ),
                 ),

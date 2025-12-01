@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:http/http.dart' as http;
 import 'package:connecty_app/widgets/pdf_view_page.dart';
 import 'package:connecty_app/screens/video_player_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -44,6 +43,8 @@ class _PostCardState extends State<PostCard> {
   bool showComments = false;
   bool showLikes = false;
   bool isLiked = false;
+  bool _modalShowLikes = false;
+  bool _modalShowComments = true;
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -51,10 +52,6 @@ class _PostCardState extends State<PostCard> {
   final Color primaryColor = const Color(0xFF6A1B9A);
   final Color backgroundColor = const Color(0xFFEDE7F6);
   final TextEditingController _commentController = TextEditingController();
-
-  // Variables pour le modal
-  final List<Map<String, String>> _modalComments = [];
-  final TextEditingController _modalCommentController = TextEditingController();
 
   bool get isNetworkImage =>
       widget.imageUrl != null && widget.imageUrl!.startsWith('http');
@@ -905,8 +902,6 @@ class _PostCardState extends State<PostCard> {
     return StatefulBuilder(
       builder: (context, setModalState) {
         final bool isMobile = true;
-        bool showLikes = false;
-        bool showComments = true;
 
         return SingleChildScrollView(
           child: Column(
@@ -918,8 +913,8 @@ class _PostCardState extends State<PostCard> {
                 ),
               const SizedBox(height: 12),
               _buildModalContent(
-                showLikes,
-                showComments,
+                _modalShowLikes,
+                _modalShowComments,
                 setModalState,
                 context,
                 isMobile,
@@ -935,8 +930,6 @@ class _PostCardState extends State<PostCard> {
     return StatefulBuilder(
       builder: (context, setModalState) {
         final bool isMobile = false;
-        bool showLikes = false;
-        bool showComments = true;
 
         return Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -949,8 +942,8 @@ class _PostCardState extends State<PostCard> {
             const SizedBox(width: 12),
             Expanded(
               child: _buildModalContent(
-                showLikes,
-                showComments,
+                _modalShowLikes,
+                _modalShowComments,
                 setModalState,
                 context,
                 isMobile,
@@ -1049,106 +1042,127 @@ class _PostCardState extends State<PostCard> {
           mainAxisAlignment: MainAxisAlignment.start,
           children: [
             _buildModalActionIcon(Icons.thumb_up, showLikes, () {
-              setModalState(() {
-                showLikes = !showLikes;
+              setState(() {
+                _modalShowLikes = !_modalShowLikes;
               });
             }, isMobile),
             const SizedBox(width: 20),
             _buildModalActionIcon(Icons.comment, showComments, () {
-              setModalState(() {
-                showComments = !showComments;
+              setState(() {
+                _modalShowComments = !_modalShowComments;
               });
             }, isMobile),
           ],
         ),
         const SizedBox(height: 12),
-        if (showComments)
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Commentaires",
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: isMobile ? 13 : 14,
-                  color: Colors.black,
-                ),
-              ),
-              const SizedBox(height: 4),
-              ..._modalComments.map(
-                (comment) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    radius: isMobile ? 14 : 16,
-                    backgroundColor: primaryColor,
-                    child: Text(
-                      comment['username']![0],
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: isMobile ? 12 : 14,
-                      ),
-                    ),
-                  ),
-                  title: Text(
-                    comment['username']!,
+        if (_modalShowComments)
+          StreamBuilder<QuerySnapshot>(
+            stream: InteractionService.getComments(widget.postId),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final comments = snapshot.data!.docs;
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "Commentaires (${comments.length})",
                     style: TextStyle(
+                      fontWeight: FontWeight.bold,
                       fontSize: isMobile ? 13 : 14,
                       color: Colors.black,
                     ),
                   ),
-                  subtitle: Text(
-                    comment['content']!,
-                    style: TextStyle(
-                      fontSize: isMobile ? 12 : 13,
-                      color: Colors.black54,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _modalCommentController,
-                      style: TextStyle(
-                        color: primaryColor,
-                        fontSize: isMobile ? 13 : 14,
+                  const SizedBox(height: 4),
+                  ...comments.map((doc) {
+                    final comment = doc.data() as Map<String, dynamic>;
+                    final isCurrentUser =
+                        comment['userId'] ==
+                        InteractionService.getCurrentUserId();
+
+                    return ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: CircleAvatar(
+                        radius: isMobile ? 14 : 16,
+                        backgroundColor: primaryColor,
+                        child: Text(
+                          comment['userName'][0],
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: isMobile ? 12 : 14,
+                          ),
+                        ),
                       ),
-                      decoration: InputDecoration(
-                        hintText: "Ajouter un commentaire...",
-                        hintStyle: TextStyle(
-                          color: Colors.grey[600],
+                      title: Text(
+                        comment['userName'],
+                        style: TextStyle(
                           fontSize: isMobile ? 13 : 14,
+                          color: Colors.black,
                         ),
-                        filled: true,
-                        fillColor: Colors.white,
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: BorderSide.none,
-                        ),
-                        contentPadding: EdgeInsets.all(isMobile ? 12 : 16),
                       ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.send, size: isMobile ? 20 : 22),
-                    color: primaryColor,
-                    onPressed: () {
-                      if (_modalCommentController.text.isNotEmpty) {
-                        setModalState(() {
-                          _modalComments.add({
-                            'username': 'Vous',
-                            'content': _modalCommentController.text,
-                          });
-                          _modalCommentController.clear();
-                        });
-                      }
-                    },
+                      subtitle: Text(
+                        comment['content'],
+                        style: TextStyle(
+                          fontSize: isMobile ? 12 : 13,
+                          color: Colors.black54,
+                        ),
+                      ),
+                      trailing: isCurrentUser
+                          ? IconButton(
+                              icon: Icon(
+                                Icons.delete,
+                                size: isMobile ? 16 : 18,
+                                color: Colors.red,
+                              ),
+                              onPressed: () =>
+                                  InteractionService.deleteComment(
+                                widget.postId,
+                                doc.id,
+                              ),
+                            )
+                          : null,
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _commentController,
+                          style: TextStyle(
+                            color: primaryColor,
+                            fontSize: isMobile ? 13 : 14,
+                          ),
+                          decoration: InputDecoration(
+                            hintText: "Ajouter un commentaire...",
+                            hintStyle: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: isMobile ? 13 : 14,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: BorderSide.none,
+                            ),
+                            contentPadding:
+                                EdgeInsets.all(isMobile ? 12 : 16),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.send, size: isMobile ? 20 : 22),
+                        color: primaryColor,
+                        onPressed: _addComment,
+                      ),
+                    ],
                   ),
                 ],
-              ),
-            ],
+              );
+            },
           ),
         const SizedBox(height: 12),
         Align(

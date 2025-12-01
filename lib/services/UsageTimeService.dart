@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:io';
 
 class UsageTimeService with WidgetsBindingObserver {
-  static const maxDailyUsage = Duration(hours: 4);
+  static const maxDailyUsage = Duration(hours: 2);
   static const warningBefore = Duration(minutes: 15);
 
   Timer? _timer;

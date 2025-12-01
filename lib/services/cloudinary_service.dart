@@ -1,10 +1,9 @@
 // Fichier: lib/services/cloudinary_service.dart
 import 'dart:convert';
-import 'package:http/http.dart' as http;
-import 'package:image_picker/image_picker.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:dio/dio.dart';
+import 'package:image_picker/image_picker.dart';
 
 class CloudinaryService {
   static final String cloudName = dotenv.env['CLOUDINARY_CLOUD_NAME']!;
@@ -18,39 +17,31 @@ class CloudinaryService {
     try {
       print('📤 Début upload Cloudinary: ${file.name} (type: $fileType)');
 
-      // Upload vidéo avec Dio séparé pour éviter le timeout
-      if (fileType == 'video') {
-        return await _uploadVideoWithDio(file);
-      }
-
       final resourceType = _getResourceType(fileType);
       final url = 'https://api.cloudinary.com/v1_1/$cloudName/$resourceType/upload';
       final timestamp = (DateTime.now().millisecondsSinceEpoch / 1000).round().toString();
       final folder = 'connecty_posts';
       final signature = _generateSignature(folder, timestamp);
 
-      var request = http.MultipartRequest('POST', Uri.parse(url))
-        ..fields.addAll({
-          'api_key': apiKey,
-          'timestamp': timestamp,
-          'signature': signature,
-          'folder': folder,
-          'type': 'upload',
-          if (fileType == 'pdf') 'resource_type': 'raw',
-        })
-        ..files.add(await http.MultipartFile.fromPath('file', file.path, filename: file.name));
+      final formData = FormData.fromMap({
+        'api_key': apiKey,
+        'timestamp': timestamp,
+        'signature': signature,
+        'folder': folder,
+        'type': 'upload',
+        if (fileType == 'pdf') 'resource_type': 'raw',
+        'file': await MultipartFile.fromFile(file.path, filename: file.name),
+      });
 
       print('📤 Envoi de la requête signée...');
-      final streamedResponse = await request.send().timeout(
-        const Duration(seconds: 60),
-        onTimeout: () => throw Exception('Timeout: l\'upload a pris trop de temps'),
-      );
+      final dio = Dio()
+        ..options.connectTimeout = const Duration(minutes: 5)
+        ..options.receiveTimeout = const Duration(minutes: 5);
 
-      final responseData = await streamedResponse.stream.bytesToString();
-      final jsonResponse = jsonDecode(responseData);
+      final response = await dio.post(url, data: formData);
 
-      if (streamedResponse.statusCode == 200) {
-        final fileUrl = jsonResponse['secure_url'] as String;
+      if (response.statusCode == 200) {
+        final fileUrl = response.data['secure_url'] as String;
         print('✅ Upload réussi! URL: $fileUrl');
 
         final isAccessible = await _testFileAccess(fileUrl);
@@ -58,7 +49,7 @@ class CloudinaryService {
 
         return fileUrl;
       } else {
-        print('❌ Erreur Cloudinary (${streamedResponse.statusCode}): $responseData');
+        print('❌ Erreur Cloudinary (${response.statusCode}): ${response.data}');
         return null;
       }
     } catch (e, stackTrace) {
@@ -68,48 +59,23 @@ class CloudinaryService {
     }
   }
 
-  // ------------------- VIDEO UPLOAD DIO -------------------
-  static Future<String?> _uploadVideoWithDio(XFile file) async {
-    final url = "https://api.cloudinary.com/v1_1/$cloudName/video/upload";
-    final formData = FormData.fromMap({
-      "file": await MultipartFile.fromFile(file.path, filename: file.name),
-      "upload_preset": uploadPreset,
-      "resource_type": "video",
-    });
-
+  // ------------------- UPLOAD SIMPLE -------------------
+  static Future<String?> uploadImageSimple(XFile image) async {
     try {
+      final url = 'https://api.cloudinary.com/v1_1/$cloudName/image/upload';
+      final formData = FormData.fromMap({
+        'upload_preset': uploadPreset,
+        'access_mode': 'public',
+        'file': await MultipartFile.fromFile(image.path),
+      });
+
       final dio = Dio()
         ..options.connectTimeout = const Duration(minutes: 5)
         ..options.receiveTimeout = const Duration(minutes: 5);
 
       final response = await dio.post(url, data: formData);
-      if (response.statusCode == 200) {
-        print('✅ Upload vidéo réussi: ${response.data["secure_url"]}');
-        return response.data["secure_url"];
-      } else {
-        print("❌ Erreur Cloudinary (video): ${response.statusCode}");
-        return null;
-      }
-    } catch (e) {
-      print("❌ Erreur Dio (video): $e");
-      return null;
-    }
-  }
 
-  // ------------------- UPLOAD SIMPLE -------------------
-  static Future<String?> uploadImageSimple(XFile image) async {
-    try {
-      final url = 'https://api.cloudinary.com/v1_1/$cloudName/image/upload';
-      var request = http.MultipartRequest('POST', Uri.parse(url))
-        ..fields['upload_preset'] = uploadPreset
-        ..fields['access_mode'] = 'public' // Forcer public
-        ..files.add(await http.MultipartFile.fromPath('file', image.path));
-
-      final response = await request.send();
-      final responseData = await response.stream.bytesToString();
-      final jsonResponse = jsonDecode(responseData);
-
-      if (response.statusCode == 200) return jsonResponse['secure_url'];
+      if (response.statusCode == 200) return response.data['secure_url'];
       return null;
     } catch (e) {
       print('❌ Erreur upload image simple: $e');
@@ -117,10 +83,11 @@ class CloudinaryService {
     }
   }
 
-  // ------------------- TEST D’ACCÈS -------------------
+  // ------------------- TEST D'ACCÈS -------------------
   static Future<bool> _testFileAccess(String url) async {
     try {
-      final response = await http.head(Uri.parse(url)).timeout(const Duration(seconds: 10));
+      final dio = Dio()..options.connectTimeout = const Duration(seconds: 10);
+      final response = await dio.head(url);
       if (response.statusCode == 200) return true;
       if (response.statusCode == 401) print('❌ Fichier non accessible (pas public)');
       return false;
@@ -141,14 +108,19 @@ class CloudinaryService {
       final signature = sha1.convert(utf8.encode('public_id=$publicId&timestamp=$timestamp$apiSecret')).toString();
 
       final deleteUrl = 'https://api.cloudinary.com/v1_1/$cloudName/$type/destroy';
-      final response = await http.post(Uri.parse(deleteUrl), body: {
-        'public_id': publicId,
-        'api_key': apiKey,
-        'timestamp': timestamp,
-        'signature': signature,
-      });
+      
+      final dio = Dio();
+      final response = await dio.post(
+        deleteUrl,
+        data: {
+          'public_id': publicId,
+          'api_key': apiKey,
+          'timestamp': timestamp,
+          'signature': signature,
+        },
+      );
 
-      if (response.statusCode == 200 && jsonDecode(response.body)['result'] == 'ok') {
+      if (response.statusCode == 200 && response.data['result'] == 'ok') {
         print('✅ Fichier supprimé: $publicId');
         return true;
       }
@@ -165,12 +137,16 @@ class CloudinaryService {
       final type = _determineType(fileUrl);
       final deleteUrl = 'https://api.cloudinary.com/v1_1/$cloudName/$type/destroy';
 
-      final response = await http.post(Uri.parse(deleteUrl), body: {
-        'public_id': publicId,
-        'upload_preset': uploadPreset,
-      });
+      final dio = Dio();
+      final response = await dio.post(
+        deleteUrl,
+        data: {
+          'public_id': publicId,
+          'upload_preset': uploadPreset,
+        },
+      );
 
-      if (response.statusCode == 200 && jsonDecode(response.body)['result'] == 'ok') {
+      if (response.statusCode == 200 && response.data['result'] == 'ok') {
         print('✅ Fichier supprimé (simple): $publicId');
         return true;
       }

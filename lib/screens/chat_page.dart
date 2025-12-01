@@ -240,20 +240,7 @@ class _ChatPageState extends State<ChatPage> {
                       color: Colors.white,
                     ),
                   ),
-                  StreamBuilder<DocumentSnapshot>(
-                    stream: ChatService.friendStatus(widget.friendId),
-                    builder: (context, snap) {
-                      final data = snap.data?.data() as Map<String, dynamic>?;
-                      final online = data?['isOnline'] == true;
-                      return Text(
-                        online ? "En ligne" : "Hors ligne",
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: online ? Colors.green[300] : Colors.white70,
-                        ),
-                      );
-                    },
-                  ),
+                  const SizedBox.shrink(),
                 ],
               ),
             ),
