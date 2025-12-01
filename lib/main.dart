@@ -69,7 +69,7 @@ class _MyAppState extends State<MyApp> {
       );
     };
 
-    // ❌ Fermeture automatique à 4 heures
+    // ❌ Fermeture automatique à 2 heures
     usageService.onLimitReached = () {
       final ctx = navigatorKey.currentContext;
       if (ctx == null) return;
@@ -79,7 +79,7 @@ class _MyAppState extends State<MyApp> {
         builder: (_) => AlertDialog(
           title: const Text("Temps atteint"),
           content: const Text(
-            "Tu as atteint la limite quotidienne de 4 heures.\n"
+            "Tu as atteint la limite quotidienne de 2 heures.\n"
                 "L’application va maintenant se fermer.",
           ),
         ),
