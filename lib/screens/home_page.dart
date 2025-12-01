@@ -497,41 +497,55 @@ class _HomePageState extends State<HomePage> {
                       context: context,
                       builder: (_) => StatefulBuilder(
                         builder: (context, setDialogState) {
-                          return AlertDialog(
-                            title: const Text("Rechercher des utilisateurs"),
-                            content: SizedBox(
-                              width: double.maxFinite,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  TextField(
-                                    controller: _searchController,
-                                    decoration: const InputDecoration(
-                                      hintText: "Rechercher un utilisateur...",
-                                      prefixIcon: Icon(Icons.search),
+                          return Dialog(
+                            insetPadding: const EdgeInsets.all(20),
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxHeight: MediaQuery.of(context).size.height * 0.8,
+                              ),
+                              child: Padding(
+                                padding: const EdgeInsets.all(16),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text(
+                                      "Rechercher des utilisateurs",
+                                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                                     ),
-                                    onChanged: (value) {
-                                      setDialogState(() {
-                                        searchQuery = value.toLowerCase();
-                                      });
-                                    },
-                                  ),
-                                  if (searchQuery.isNotEmpty) ...[
                                     const SizedBox(height: 16),
+                                    TextField(
+                                      controller: _searchController,
+                                      decoration: const InputDecoration(
+                                        hintText: "Rechercher un utilisateur...",
+                                        prefixIcon: Icon(Icons.search),
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      onChanged: (value) {
+                                        setDialogState(() {
+                                          searchQuery = value.toLowerCase();
+                                        });
+                                      },
+                                    ),
+                                    const SizedBox(height: 16),
+                                    if (searchQuery.isNotEmpty)
+                                      Expanded(
+                                        child: _buildSearchResults(),
+                                      ),
+                                    const SizedBox(height: 8),
                                     SizedBox(
-                                      height: 300,
-                                      child: _buildSearchResults(),
+                                      width: double.infinity,
+                                      child: ElevatedButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF6A1B9A),
+                                        ),
+                                        child: const Text("Fermer"),
+                                      ),
                                     ),
                                   ],
-                                ],
+                                ),
                               ),
                             ),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text("Fermer"),
-                              ),
-                            ],
                           );
                         },
                       ),

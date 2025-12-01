@@ -11,6 +11,7 @@ import 'profile_header.dart';
 import 'profile_posts.dart';
 import 'profile_about.dart';
 import 'profile_friends.dart';
+import 'profile_edit_dialog.dart'; // IMPORT AJOUTÉ
 
 class ProfilePage extends StatefulWidget {
   final String? userId;
@@ -40,15 +41,6 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _isLoading = true;
   bool _isSaving = false;
 
-  // Contrôleurs pour l'édition
-  final TextEditingController _bioController = TextEditingController();
-  final TextEditingController _ageController = TextEditingController();
-  final TextEditingController _schoolController = TextEditingController();
-  final TextEditingController _locationController = TextEditingController();
-  final TextEditingController _interestsController = TextEditingController();
-
-  int _selectedSection = 0;
-
   // Variables pour l'amitié
   bool _isCurrentUserProfile = true;
   String? _viewedUserId;
@@ -60,7 +52,7 @@ class _ProfilePageState extends State<ProfilePage> {
   };
   bool _isLoadingFriendship = false;
 
-  // Nouvelle variable pour les favoris
+  // Variable pour les favoris
   int _favoritesCount = 0;
 
   // Stream pour les posts en temps réel
@@ -89,12 +81,11 @@ class _ProfilePageState extends State<ProfilePage> {
     await Future.wait([
       _loadUserData(),
       _loadUserFriends(),
-      _loadFavoritesCount(), // ← AJOUT IMPORTANT
+      _loadFavoritesCount(),
     ]);
     setState(() => _isLoading = false);
   }
 
-  // ========== NOUVELLE MÉTHODE : COMPTER LES FAVORIS ==========
   Future<void> _loadFavoritesCount() async {
     try {
       final String userIdToLoad = _viewedUserId ?? currentUser?.uid ?? '';
@@ -145,7 +136,6 @@ class _ProfilePageState extends State<ProfilePage> {
       if (userDoc.exists) {
         setState(() {
           _userData = userDoc.data()!;
-          _initializeControllers();
         });
       } else {
         if (_isCurrentUserProfile) {
@@ -194,19 +184,10 @@ class _ProfilePageState extends State<ProfilePage> {
 
       setState(() {
         _userData = newUserData;
-        _initializeControllers();
       });
     } catch (e) {
       print("❌ Erreur création profil: $e");
     }
-  }
-
-  void _initializeControllers() {
-    _bioController.text = _userData['bio'] ?? '';
-    _ageController.text = _userData['age'] ?? '';
-    _schoolController.text = _userData['school'] ?? '';
-    _locationController.text = _userData['location'] ?? '';
-    _interestsController.text = _userData['interests'] ?? '';
   }
 
   Future<void> _loadUserFriends() async {
@@ -404,11 +385,11 @@ class _ProfilePageState extends State<ProfilePage> {
       setState(() => _isSaving = true);
 
       final updatedData = {
-        'bio': _bioController.text.trim(),
-        'age': _ageController.text.trim(),
-        'school': _schoolController.text.trim(),
-        'location': _locationController.text.trim(),
-        'interests': _interestsController.text.trim(),
+        'bio': _userData['bio'] ?? '',
+        'age': _userData['age'] ?? '',
+        'school': _userData['school'] ?? '',
+        'location': _userData['location'] ?? '',
+        'interests': _userData['interests'] ?? '',
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
@@ -416,10 +397,6 @@ class _ProfilePageState extends State<ProfilePage> {
           .collection('users')
           .doc(currentUser!.uid)
           .update(updatedData);
-
-      setState(() {
-        _userData.addAll(updatedData);
-      });
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -591,7 +568,7 @@ class _ProfilePageState extends State<ProfilePage> {
               return _buildStatItem("Publications", postsCount);
             },
           ),
-          _buildStatItem("Favoris", _favoritesCount), // ← MODIFIÉ ICI
+          _buildStatItem("Favoris", _favoritesCount),
         ],
       ),
     );
@@ -644,6 +621,8 @@ class _ProfilePageState extends State<ProfilePage> {
         );
     }
   }
+
+  int _selectedSection = 0;
 
   Widget _buildStatItem(String label, int value) {
     return Column(
@@ -707,8 +686,6 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
-
-  // ... (le reste du code reste inchangé, méthodes pour les posts, etc.)
 
   // ========== MÉTHODES POUR LES POSTS ==========
 
@@ -951,72 +928,16 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  // MODIFICATION IMPORTANTE ICI
   void _editProfile() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        title: Row(
-          children: [
-            Icon(Icons.edit, color: primaryColor),
-            const SizedBox(width: 8),
-            Text("Modifier le profil", style: TextStyle(color: primaryColor)),
-          ],
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Stack(
-                children: [
-                  CircleAvatar(
-                    radius: 40,
-                    backgroundColor: primaryColor.withOpacity(0.1),
-                    backgroundImage: _userData['profileImage'] != null
-                        ? NetworkImage(_userData['profileImage']!) as ImageProvider
-                        : const AssetImage("assets/post/art.jpg"),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: GestureDetector(
-                      onTap: _updateProfileImage,
-                      child: Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: primaryColor,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.camera_alt, color: Colors.white, size: 14),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              TextField(controller: _bioController, decoration: const InputDecoration(labelText: "Bio"), maxLines: 3),
-              const SizedBox(height: 12),
-              TextField(controller: _ageController, decoration: const InputDecoration(labelText: "Âge")),
-              const SizedBox(height: 12),
-              TextField(controller: _schoolController, decoration: const InputDecoration(labelText: "École")),
-              const SizedBox(height: 12),
-              TextField(controller: _locationController, decoration: const InputDecoration(labelText: "Lieu")),
-              const SizedBox(height: 12),
-              TextField(controller: _interestsController, decoration: const InputDecoration(labelText: "Centres d'intérêt"), maxLines: 2),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text("Annuler")),
-          ElevatedButton(
-            onPressed: _isSaving ? null : () async {
-              Navigator.pop(context);
-              await _updateProfile();
-            },
-            child: const Text("Sauvegarder"),
-          ),
-        ],
+      builder: (context) => ProfileEditDialog(
+        userData: _userData,
+        isSaving: _isSaving,
+        onUpdateProfile: _updateProfile,
+        onUpdateProfileImage: _updateProfileImage,
+        primaryColor: primaryColor,
       ),
     );
   }
@@ -1132,11 +1053,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   @override
   void dispose() {
-    _bioController.dispose();
-    _ageController.dispose();
-    _schoolController.dispose();
-    _locationController.dispose();
-    _interestsController.dispose();
     super.dispose();
   }
 }

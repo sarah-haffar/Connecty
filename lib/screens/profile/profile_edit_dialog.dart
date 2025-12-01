@@ -26,6 +26,9 @@ class _ProfileEditDialogState extends State<ProfileEditDialog> {
   final TextEditingController _schoolController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final TextEditingController _interestsController = TextEditingController();
+  
+  String? _ageErrorText;
+  bool _isAgeValid = true;
 
   @override
   void initState() {
@@ -39,6 +42,47 @@ class _ProfileEditDialogState extends State<ProfileEditDialog> {
     _schoolController.text = widget.userData['school'] ?? '';
     _locationController.text = widget.userData['location'] ?? '';
     _interestsController.text = widget.userData['interests'] ?? '';
+    
+    // Valider l'âge initial
+    if (_ageController.text.isNotEmpty) {
+      _validateAge(_ageController.text);
+    }
+  }
+
+  // Fonction pour valider l'âge (12 à 18 ans inclus)
+  bool _validateAge(String? ageText) {
+    if (ageText == null || ageText.isEmpty) {
+      setState(() {
+        _ageErrorText = null;
+        _isAgeValid = true; // Vide est valide (optionnel)
+      });
+      return true;
+    }
+
+    // Essayer de convertir en nombre
+    final age = int.tryParse(ageText);
+    if (age == null) {
+      setState(() {
+        _ageErrorText = "Veuillez entrer un âge valide";
+        _isAgeValid = false;
+      });
+      return false;
+    }
+
+    // Vérifier la plage d'âge : 12 à 18 ans inclus
+    if (age >= 12 && age <= 18) {
+      setState(() {
+        _ageErrorText = null;
+        _isAgeValid = true;
+      });
+      return true;
+    } else {
+      setState(() {
+        _ageErrorText = "Âge non autorisé (12-18 ans seulement)";
+        _isAgeValid = false;
+      });
+      return false;
+    }
   }
 
   @override
@@ -124,10 +168,20 @@ class _ProfileEditDialogState extends State<ProfileEditDialog> {
         color: Colors.blue.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(
-        'Tous les champs sont optionnels',
-        style: TextStyle(color: Colors.blue, fontSize: 12),
-        textAlign: TextAlign.center,
+      child: Column(
+        children: [
+          Text(
+            'Tous les champs sont optionnels',
+            style: TextStyle(color: Colors.blue, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Âge accepté: 12 à 18 ans uniquement',
+            style: TextStyle(color: widget.primaryColor, fontSize: 11, fontWeight: FontWeight.bold),
+            textAlign: TextAlign.center,
+          ),
+        ],
       ),
     );
   }
@@ -155,12 +209,26 @@ class _ProfileEditDialogState extends State<ProfileEditDialog> {
           decoration: InputDecoration(
             labelText: "Âge",
             labelStyle: TextStyle(color: widget.primaryColor),
-            hintText: "ex: 21 ans",
+            hintText: "12 à 18 ans seulement",
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
             ),
             prefixIcon: Icon(Icons.cake, color: widget.primaryColor),
+            errorText: _ageErrorText,
+            errorStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            suffixIcon: _ageController.text.isNotEmpty
+                ? IconButton(
+                    icon: Icon(Icons.info, color: widget.primaryColor, size: 18),
+                    onPressed: () {
+                      _showAgeInfoDialog(context);
+                    },
+                  )
+                : null,
           ),
+          keyboardType: TextInputType.number,
+          onChanged: (value) {
+            _validateAge(value);
+          },
         ),
         const SizedBox(height: 12),
 
@@ -169,7 +237,7 @@ class _ProfileEditDialogState extends State<ProfileEditDialog> {
           decoration: InputDecoration(
             labelText: "École",
             labelStyle: TextStyle(color: widget.primaryColor),
-            hintText: "ex: ISET Kelibia",
+            hintText: "ex: Collège/Lycée...",
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
             ),
@@ -209,6 +277,38 @@ class _ProfileEditDialogState extends State<ProfileEditDialog> {
     );
   }
 
+  void _showAgeInfoDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Âge accepté"),
+        content: const Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text("Pour utiliser l'application, l'âge doit être entre:"),
+            SizedBox(height: 8),
+            Text("• 12 ans (inclus)"),
+            Text("• 13 ans"),
+            Text("• 14 ans"),
+            Text("• 15 ans"),
+            Text("• 16 ans"),
+            Text("• 17 ans"),
+            Text("• 18 ans (inclus)"),
+            SizedBox(height: 8),
+            Text("Application réservée aux adolescents."),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("OK"),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildCancelButton() {
     return OutlinedButton(
       onPressed: () => Navigator.pop(context),
@@ -221,10 +321,13 @@ class _ProfileEditDialogState extends State<ProfileEditDialog> {
   }
 
   Widget _buildSaveButton() {
+    // Le bouton est désactivé si: en cours de sauvegarde OU âge invalide
+    final isDisabled = widget.isSaving || !_isAgeValid;
+    
     return ElevatedButton(
-      onPressed: widget.isSaving ? null : _saveProfile,
+      onPressed: isDisabled ? null : _saveProfile,
       style: ElevatedButton.styleFrom(
-        backgroundColor: widget.primaryColor,
+        backgroundColor: isDisabled ? Colors.grey : widget.primaryColor,
         foregroundColor: Colors.white,
       ),
       child: widget.isSaving
@@ -238,6 +341,19 @@ class _ProfileEditDialogState extends State<ProfileEditDialog> {
   }
 
   void _saveProfile() {
+    // Validation finale avant sauvegarde
+    if (!_validateAge(_ageController.text.trim())) {
+      // Si l'âge est invalide, on ne fait RIEN
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Âge non valide. Veuillez corriger avant de sauvegarder."),
+          backgroundColor: Colors.red,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
     // Mettre à jour les données locales avant de sauvegarder
     widget.userData['bio'] = _bioController.text.trim();
     widget.userData['age'] = _ageController.text.trim();

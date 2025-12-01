@@ -184,29 +184,47 @@ class _FriendChatTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              trailing: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (lastTime != null)
-                    Text(
-                      _formatTime(lastTime),
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: unreadCount > 0 ? const Color(0xFF6A1B9A) : Colors.grey[600],
-                        fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal,
+              trailing: SizedBox(
+                width: 60, // Largeur fixe pour éviter les variations de layout
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    if (lastTime != null)
+                      Padding(
+                        padding: EdgeInsets.only(bottom: unreadCount > 0 ? 4 : 0),
+                        child: Text(
+                          _formatTime(lastTime),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: unreadCount > 0 ? const Color(0xFF6A1B9A) : Colors.grey[600],
+                            fontWeight: unreadCount > 0 ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
                       ),
-                    ),
-                  if (unreadCount > 0)
-                    Container(
-                      margin: const EdgeInsets.only(top: 6),
-                      padding: const EdgeInsets.all(7),
-                      decoration: const BoxDecoration(color: Color(0xFF6A1B9A), shape: BoxShape.circle),
-                      child: Text(
-                        unreadCount > 99 ? "99+" : "$unreadCount",
-                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                    if (unreadCount > 0)
+                      Container(
+                        width: 24, // Largeur FIXE
+                        height: 24, // Hauteur FIXE
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF6A1B9A),
+                          borderRadius: BorderRadius.circular(12), // Parfaitement rond
+                        ),
+                        child: Center(
+                          child: Text(
+                            unreadCount > 99 ? "99+" : "$unreadCount",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              height: 1.0, // Évite le décalage vertical
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
               onTap: () {
                 Navigator.push(
@@ -256,9 +274,12 @@ class _TypingDotsState extends State<_TypingDots> with SingleTickerProviderState
   @override
   void initState() {
     super.initState();
+    // INITIALISATION DE L'ANIMATION CONTROLLER
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    )..repeat(reverse: true);
   }
-
-
 
   @override
   void dispose() {
@@ -271,6 +292,7 @@ class _TypingDotsState extends State<_TypingDots> with SingleTickerProviderState
     return AnimatedBuilder(
       animation: _controller,
       builder: (_, __) => Row(
+        mainAxisSize: MainAxisSize.min,
         children: List.generate(3, (i) => Padding(
           padding: const EdgeInsets.only(right: 3),
           child: ScaleTransition(
