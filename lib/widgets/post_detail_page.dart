@@ -54,22 +54,25 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   if (widget.profileImageUrl != null)
                     CircleAvatar(
                       radius: 20,
-                      backgroundImage: AssetImage(widget.profileImageUrl!),
+                      backgroundImage: NetworkImage(widget.profileImageUrl!),
                     )
                   else
                     CircleAvatar(
                       radius: 20,
                       backgroundColor: primaryColor,
-                      child: Text(widget.username[0],
-                          style: const TextStyle(color: Colors.white)),
+                      child: Text(
+                        widget.username[0],
+                        style: const TextStyle(color: Colors.white),
+                      ),
                     ),
                   const SizedBox(width: 8),
                   Text(
                     widget.username,
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.black),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: Colors.black,
+                    ),
                   ),
                 ],
               ),
@@ -77,7 +80,7 @@ class _PostDetailPageState extends State<PostDetailPage> {
               if (widget.imageUrl != null)
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: Image.asset(
+                  child: Image.network(
                     widget.imageUrl!,
                     width: 700,
                     height: 500,
@@ -103,9 +106,15 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     icon: Icon(Icons.thumb_up, color: Colors.white),
                     label: Text("Like (${likedUsers.length})"),
                     style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor),
+                      backgroundColor: primaryColor,
+                    ),
                   ),
-                  _customButton(primaryColor, Icons.comment, "Commenter", () {}),
+                  _customButton(
+                    primaryColor,
+                    Icons.comment,
+                    "Commenter",
+                    () {},
+                  ),
                   _customButton(primaryColor, Icons.share, "Partager", () {}),
                 ],
               ),
@@ -118,30 +127,38 @@ class _PostDetailPageState extends State<PostDetailPage> {
                     Text(
                       "J'aime",
                       style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: primaryColor),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: primaryColor,
+                      ),
                     ),
                     const SizedBox(height: 4),
-                    ...likedUsers.map((user) => ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(
-                        backgroundColor: primaryColor,
-                        child: Text(user[0],
-                            style: const TextStyle(color: Colors.white)),
+                    ...likedUsers.map(
+                      (user) => ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: primaryColor,
+                          child: Text(
+                            user[0],
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                        title: Text(
+                          user,
+                          style: const TextStyle(color: Colors.black),
+                        ),
                       ),
-                      title:
-                      Text(user, style: const TextStyle(color: Colors.black)),
-                    )),
+                    ),
                     const SizedBox(height: 10),
                   ],
                 ),
               const Text(
                 "Commentaires",
                 style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Colors.black),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 18,
+                  color: Colors.black,
+                ),
               ),
               const SizedBox(height: 10),
               // Liste des commentaires
@@ -152,17 +169,29 @@ class _PostDetailPageState extends State<PostDetailPage> {
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
                     backgroundColor: primaryColor,
-                    child: Text(comment["username"]![0],
-                        style: const TextStyle(color: Colors.white)),
+                    child: Text(
+                      comment["username"]![0],
+                      style: const TextStyle(color: Colors.white),
+                    ),
                   ),
-                  title: Text(comment["username"]!,
-                      style: const TextStyle(color: Colors.black)),
-                  subtitle: Text(comment["text"]!,
-                      style: const TextStyle(color: Colors.black54)),
+                  title: Text(
+                    comment["username"]!,
+                    style: const TextStyle(color: Colors.black),
+                  ),
+                  subtitle: Text(
+                    comment["text"]!,
+                    style: const TextStyle(color: Colors.black54),
+                  ),
                   trailing: PopupMenuButton(
                     itemBuilder: (context) => [
-                      const PopupMenuItem(value: 'edit', child: Text('Modifier')),
-                      const PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Text('Modifier'),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Supprimer'),
+                      ),
                     ],
                     onSelected: (value) {
                       if (value == 'delete') {
@@ -190,8 +219,10 @@ class _PostDetailPageState extends State<PostDetailPage> {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.all(Radius.circular(12)),
                         ),
-                        contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
                       ),
                     ),
                   ),
@@ -207,14 +238,14 @@ class _PostDetailPageState extends State<PostDetailPage> {
                           } else {
                             comments.add({
                               "username": widget.username,
-                              "text": _commentController.text
+                              "text": _commentController.text,
                             });
                           }
                           _commentController.clear();
                         });
                       }
                     },
-                  )
+                  ),
                 ],
               ),
             ],
@@ -224,16 +255,19 @@ class _PostDetailPageState extends State<PostDetailPage> {
     );
   }
 
-  Widget _customButton(Color color, IconData icon, String label, VoidCallback onPressed) {
+  Widget _customButton(
+    Color color,
+    IconData icon,
+    String label,
+    VoidCallback onPressed,
+  ) {
     return ElevatedButton.icon(
       onPressed: onPressed,
       icon: Icon(icon, size: 20),
       label: Text(label),
       style: ElevatedButton.styleFrom(
         backgroundColor: color,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       ),
     );

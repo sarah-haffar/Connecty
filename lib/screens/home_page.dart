@@ -81,6 +81,8 @@ class _HomePageState extends State<HomePage> {
   final Color primaryColor = const Color(0xFF6A1B9A);
   final Color sidebarColor = const Color(0xFFF0F0F0);
 
+  int _currentBottomNavIndex = 0; // Index pour la navigation inférieure
+
   @override
   void initState() {
     super.initState();
@@ -396,6 +398,28 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  // Méthode pour gérer la navigation de la barre inférieure
+  void _onBottomNavTapped(int index) {
+    setState(() {
+      _currentBottomNavIndex = index;
+    });
+
+    switch (index) {
+      case 0: // Favoris
+        _showFavorites();
+        break;
+      case 1: // Messages
+        _showChats();
+        break;
+      case 2: // Profil
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ProfilePage()),
+        );
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -514,50 +538,7 @@ class _HomePageState extends State<HomePage> {
                     );
                   },
                 ),
-              IconButton(
-                icon: const Icon(Icons.star),
-                tooltip: "Favoris",
-                onPressed: _showFavorites,
-              ),
-
-              // 💬 MESSAGES AVEC BADGE
-              IconButton(
-                icon: Stack(
-                  children: [
-                    const Icon(Icons.message),
-                    if (_unreadMessagesCount > 0)
-                      Positioned(
-                        right: 0,
-                        top: 0,
-                        child: Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            color: Colors.red,
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          constraints: const BoxConstraints(
-                            minWidth: 14,
-                            minHeight: 14,
-                          ),
-                          child: Text(
-                            _unreadMessagesCount > 9
-                                ? '9+'
-                                : '$_unreadMessagesCount',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 8,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-                tooltip: "Messages",
-                onPressed: _showChats,
-              ),
-
+              // NOTIFICATIONS SEULEMENT DANS LA NAVBAR
               IconButton(
                 icon: Stack(
                   children: [
@@ -594,19 +575,6 @@ class _HomePageState extends State<HomePage> {
                 tooltip: "Notifications",
                 onPressed: _showNotifications,
               ),
-
-              IconButton(
-                icon: const Icon(Icons.person),
-                tooltip: "Profil",
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ProfilePage(),
-                    ),
-                  );
-                },
-              ),
             ],
           ),
           drawer: isMobile
@@ -627,6 +595,63 @@ class _HomePageState extends State<HomePage> {
                   padding: const EdgeInsets.all(12),
                   child: _buildPostsList(),
                 ),
+              ),
+            ],
+          ),
+          // BARRE DE NAVIGATION INFÉRIEURE
+          bottomNavigationBar: BottomNavigationBar(
+            currentIndex: _currentBottomNavIndex,
+            onTap: _onBottomNavTapped,
+            selectedItemColor: primaryColor,
+            unselectedItemColor: Colors.grey,
+            items: [
+              BottomNavigationBarItem(
+                icon: Stack(
+                  children: [
+                    const Icon(Icons.star),
+                    // Vous pouvez ajouter un badge pour les favoris si nécessaire
+                  ],
+                ),
+                label: "Favoris",
+              ),
+              BottomNavigationBarItem(
+                icon: Stack(
+                  children: [
+                    const Icon(Icons.message),
+                    if (_unreadMessagesCount > 0)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 14,
+                            minHeight: 14,
+                          ),
+                          child: Text(
+                            _unreadMessagesCount > 9
+                                ? '9+'
+                                : '$_unreadMessagesCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 8,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                label: "Messages",
+              ),
+              BottomNavigationBarItem(
+                icon: const Icon(Icons.person),
+                label: "Profil",
               ),
             ],
           ),

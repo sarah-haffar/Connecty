@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/notification_service.dart';
 import '../services/friendship_service.dart';
+import '../screens/profile/profile_page.dart';
 
 class NotificationDialog extends StatefulWidget {
   final int unreadCount;
@@ -21,19 +22,15 @@ class _NotificationDialogState extends State<NotificationDialog> {
       insetPadding: const EdgeInsets.all(24.0),
       child: Container(
         constraints: BoxConstraints(
-          maxWidth: 500.0, // Largeur maximale fixe
+          maxWidth: 500.0,
           maxHeight: MediaQuery.of(context).size.height * 0.8,
         ),
         padding: const EdgeInsets.all(20.0),
         child: Column(
           children: [
             _buildHeader(),
-
             const Divider(height: 1.0, thickness: 1.0),
-
             const SizedBox(height: 8.0),
-
-            // CONTENU DES NOTIFICATIONS
             Expanded(child: _buildNotificationsList()),
           ],
         ),
@@ -56,44 +53,11 @@ class _NotificationDialogState extends State<NotificationDialog> {
             ),
           ),
           Row(
-            mainAxisSize:
-                MainAxisSize.min, // ← IMPORTANT : Évite le débordement
+            mainAxisSize: MainAxisSize.min,
             children: [
-              if (widget.unreadCount > 0)
-                Container(
-                  constraints: BoxConstraints(
-                    maxWidth: 150.0, // ← LIMITE LA LARGEUR MAXIMALE
-                  ),
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12.0, // ← RÉDUIT LE PADDING
-                        vertical: 8.0,
-                      ),
-                      backgroundColor: const Color(0xFF6A1B9A),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                    ),
-                    onPressed: () {
-                      NotificationService.markAllAsRead();
-                    },
-                    child: const Text(
-                      "Tout marquer comme lu",
-                      style: TextStyle(
-                        fontSize: 12.0, // ← RÉDUIT LA TAILLE DE POLICE
-                        fontWeight: FontWeight.w600,
-                      ),
-                      maxLines: 1, // ← GARANTIT 1 SEULE LIGNE
-                      overflow:
-                          TextOverflow.ellipsis, // ← AJOUTE "..." SI TROP LONG
-                    ),
-                  ),
-                ),
-              const SizedBox(width: 8.0), // ← ESPACEMENT FIXE
+              const SizedBox(width: 8.0),
               Container(
-                width: 36.0, // ← TAILLE RÉDUITE
+                width: 36.0,
                 height: 36.0,
                 decoration: BoxDecoration(
                   color: Colors.grey[100],
@@ -222,7 +186,6 @@ class _NotificationDialogState extends State<NotificationDialog> {
                     _formatTimestamp(data['timestamp']),
                     style: TextStyle(color: Colors.grey[600], fontSize: 12.0),
                   ),
-                  // Ajouter des boutons d'action pour les demandes d'amitié
                   if (type == 'friend_request' && !isRead)
                     _buildFriendRequestActions(
                       notificationId,
@@ -242,8 +205,14 @@ class _NotificationDialogState extends State<NotificationDialog> {
                     ),
                   )
                 : null,
-            onTap: () {
-              NotificationService.markAsRead(notificationId);
+            onTap: () async {
+              // Marquer la notification comme lue
+              await NotificationService.markAsRead(notificationId);
+
+              // Rafraîchir l'interface pour mettre à jour l'apparence
+              setState(() {});
+
+              // Gérer le tap sans fermer le dialog
               _handleNotificationTap(type, data);
             },
           ),
@@ -252,7 +221,6 @@ class _NotificationDialogState extends State<NotificationDialog> {
     );
   }
 
-  // Widget pour les boutons d'action des demandes d'amitié
   Widget _buildFriendRequestActions(
     String notificationId,
     String friendUserId,
@@ -277,7 +245,6 @@ class _NotificationDialogState extends State<NotificationDialog> {
               ),
               onPressed: () async {
                 try {
-                  // D'abord, trouver l'ID de la demande d'amitié
                   final friendshipStatus =
                       await FriendshipService.checkFriendshipStatus(
                         friendUserId,
@@ -289,7 +256,6 @@ class _NotificationDialogState extends State<NotificationDialog> {
                       friendshipStatus['requestId'],
                     );
 
-                    // Marquer la notification comme lue
                     await NotificationService.markAsRead(notificationId);
 
                     if (mounted) {
@@ -299,7 +265,7 @@ class _NotificationDialogState extends State<NotificationDialog> {
                           backgroundColor: Colors.green,
                         ),
                       );
-                      setState(() {}); // Rafraîchir l'interface
+                      setState(() {});
                     }
                   } else {
                     throw Exception('Demande d\'ami non trouvée');
@@ -348,7 +314,6 @@ class _NotificationDialogState extends State<NotificationDialog> {
                       friendshipStatus['requestId'],
                     );
 
-                    // Marquer la notification comme lue
                     await NotificationService.markAsRead(notificationId);
 
                     if (mounted) {
@@ -358,17 +323,15 @@ class _NotificationDialogState extends State<NotificationDialog> {
                           backgroundColor: Colors.orange,
                         ),
                       );
-                      setState(() {}); // Rafraîchir l'interface
+                      setState(() {});
                     }
                   } else {
-                    // Si pas de demande trouvée, simplement marquer la notification comme lue
                     await NotificationService.markAsRead(notificationId);
                     if (mounted) {
                       setState(() {});
                     }
                   }
                 } catch (e) {
-                  // En cas d'erreur, marquer quand même comme lue
                   await NotificationService.markAsRead(notificationId);
                   if (mounted) {
                     setState(() {});
@@ -393,9 +356,7 @@ class _NotificationDialogState extends State<NotificationDialog> {
       case 'comment':
         return const Color(0xFFE8F5E8);
       case 'friend_request':
-        return const Color(
-          0xFFE8F5E9,
-        ); // Vert très clair pour les demandes d'amitié
+        return const Color(0xFFE8F5E9);
       case 'friend_request_accepted':
         return const Color(0xFFE0F2F1);
       default:
@@ -410,9 +371,9 @@ class _NotificationDialogState extends State<NotificationDialog> {
       case 'comment':
         return Icons.comment;
       case 'friend_request':
-        return Icons.person_add; // Icône pour les demandes d'amitié
+        return Icons.person_add;
       case 'friend_request_accepted':
-        return Icons.people; // Icône pour les acceptations
+        return Icons.people;
       default:
         return Icons.notifications;
     }
@@ -425,9 +386,9 @@ class _NotificationDialogState extends State<NotificationDialog> {
       case 'comment':
         return const Color(0xFF388E3C);
       case 'friend_request':
-        return const Color(0xFF2E7D32); // Vert foncé pour les demandes
+        return const Color(0xFF2E7D32);
       case 'friend_request_accepted':
-        return const Color(0xFF00796B); // Turquoise pour les acceptations
+        return const Color(0xFF00796B);
       default:
         return const Color(0xFF757575);
     }
@@ -446,45 +407,39 @@ class _NotificationDialogState extends State<NotificationDialog> {
     return "${time.day.toString().padLeft(2, '0')}/${time.month.toString().padLeft(2, '0')}/${time.year}";
   }
 
-  // Mettez à jour la méthode de navigation
+  // MÉTHODE MODIFIÉE : NE FERME PAS LE DIALOG SAUF POUR LA NAVIGATION VERS PROFIL
   void _handleNotificationTap(String type, Map<String, dynamic> data) {
     switch (type) {
-      case 'like':
-      case 'comment':
-        //_navigateToPost(data['postId']);
-        break;
       case 'friend_request':
       case 'friend_request_accepted':
-        // Navigation vers le profil de l'utilisateur
-        // _navigateToProfile(data['fromUserId']);
+        final String? fromUserId = data['fromUserId'];
+        if (fromUserId != null && fromUserId.isNotEmpty) {
+          // Fermer le dialog uniquement pour naviguer vers le profil
+          Navigator.pop(context);
+          _navigateToProfile(fromUserId);
+        } else {
+          _showSnackBar('Profil utilisateur non disponible');
+        }
+        break;
+      case 'like':
+      case 'comment':
+        // Ne rien faire d'autre - le dialog reste ouvert
         break;
       default:
-        print('Notification de type inconnu: $type');
+        _showSnackBar('Notification de type: $type');
     }
   }
 
-  // Navigation vers le profil utilisateur
   void _navigateToProfile(String userId) {
-    print('Navigation vers le profil: $userId');
-    // Implémentez la navigation vers le profil utilisateur
-    Navigator.pop(context); // Ferme le dialog des notifications
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Navigation vers le profil: $userId'),
-        duration: const Duration(seconds: 2),
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ProfilePage(userId: userId)),
     );
   }
 
-  void _navigateToPost(String postId) {
-    print('Navigation vers le post: $postId');
-    // Implémentez la navigation vers le post
-    Navigator.pop(context); // Ferme le dialog
+  void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Navigation vers le post: $postId'),
-        duration: const Duration(seconds: 2),
-      ),
+      SnackBar(content: Text(message), duration: const Duration(seconds: 2)),
     );
   }
 }
